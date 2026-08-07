@@ -2,6 +2,7 @@ import { useState } from "react";
 import { api } from "../../api/client";
 import type { Biblioteca, Planta, Programacion } from "../../api/types";
 import { FullScreenPanel } from "../../components/FullScreenPanel";
+import { ImageLightbox } from "../../components/ImageLightbox";
 
 const DIAS = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
 
@@ -39,6 +40,7 @@ export function ScheduleWizard({
   const [dias, setDias] = useState<number[]>([]);
   const [preferidoCodigo, setPreferidoCodigo] = useState("");
   const [alternativoCodigo, setAlternativoCodigo] = useState("");
+  const [planoAmpliado, setPlanoAmpliado] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -213,7 +215,14 @@ export function ScheduleWizard({
               asiento que quieras.
             </p>
             {plano ? (
-              <img src={plano} alt={`Plano de ${planta?.nombre}`} className="w-full rounded-xl border border-slate-200" />
+              <button type="button" onClick={() => setPlanoAmpliado(true)} className="block w-full">
+                <img
+                  src={plano}
+                  alt={`Plano de ${planta?.nombre}`}
+                  className="w-full cursor-zoom-in rounded-xl border border-slate-200"
+                />
+                <p className="mt-1 text-xs text-brand-600">Toca la imagen para verla más grande</p>
+              </button>
             ) : (
               <div className="flex h-48 items-center justify-center rounded-xl border border-dashed border-slate-300 text-sm text-slate-400">
                 No hay plano disponible para esta sala todavía
@@ -281,6 +290,10 @@ export function ScheduleWizard({
             {loading ? "Creando…" : "Crear programación"}
           </button>
         </div>
+      )}
+
+      {planoAmpliado && plano && (
+        <ImageLightbox src={plano} alt={`Plano de ${planta?.nombre}`} onClose={() => setPlanoAmpliado(false)} />
       )}
     </FullScreenPanel>
   );
