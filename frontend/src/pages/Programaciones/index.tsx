@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { api } from "../../api/client";
 import type { Biblioteca, Programacion } from "../../api/types";
 import { ScheduleCard } from "../../components/ScheduleCard";
@@ -33,6 +33,7 @@ export function ProgramacionesPage() {
   }
 
   return (
+    <Fragment>
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold text-slate-800">Programaciones</h1>
@@ -55,6 +56,7 @@ export function ProgramacionesPage() {
           ))}
         </div>
       )}
+    </div>
 
       {wizardOpen && (
         <ScheduleWizard
@@ -66,6 +68,6 @@ export function ProgramacionesPage() {
           }}
         />
       )}
-    </div>
+    </Fragment>
   );
 }

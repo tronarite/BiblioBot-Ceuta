@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { api } from "../../api/client";
 import type { Biblioteca, DisponibilidadBiblioteca, HorarioExtraordinario, ReservationsResponse } from "../../api/types";
 import { AvailabilityBadge } from "../../components/AvailabilityBadge";
@@ -44,6 +44,7 @@ export function DashboardPage() {
   }, []);
 
   return (
+    <Fragment>
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold text-slate-800">Dashboard</h1>
@@ -94,6 +95,7 @@ export function DashboardPage() {
       )}
 
       {tab === "planos" && <FloorPlans />}
+    </div>
 
       {wizardOpen && (
         <BookingWizard
@@ -105,6 +107,6 @@ export function DashboardPage() {
           }}
         />
       )}
-    </div>
+    </Fragment>
   );
 }
