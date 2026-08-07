@@ -1,10 +1,15 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { api } from "../../api/client";
-import type { Biblioteca, Planta, PerformancesResponse, Programacion, SeatInfo } from "../../api/types";
+import type { Biblioteca, Planta, Programacion } from "../../api/types";
 import { FullScreenPanel } from "../../components/FullScreenPanel";
-import { SeatMapViewer } from "../../components/SeatMapViewer";
 
 const DIAS = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+
+const PLANO_POR_PLANTA: Record<string, string> = {
+  "3ª Planta": "/Planta3.jpg",
+  "4ª Planta": "/Planta4.jpg",
+  "5ª Planta": "/Planta5.jpg",
+};
 
 function reglaPermite(biblioteca: Biblioteca, planta: Planta, turnoTipo: "manana" | "tarde", dia: number): string | null {
   const reglasB = biblioteca.reglasEspeciales ? JSON.parse(biblioteca.reglasEspeciales) : {};
@@ -32,48 +37,17 @@ export function ScheduleWizard({
   const [valorNumero, setValorNumero] = useState(10);
   const [valorFecha, setValorFecha] = useState("");
   const [dias, setDias] = useState<number[]>([]);
-  const [seats, setSeats] = useState<SeatInfo[]>([]);
-  const [preferido, setPreferido] = useState<SeatInfo | null>(null);
-  const [alternativo, setAlternativo] = useState<SeatInfo | null>(null);
-  const [pickingAlternate, setPickingAlternate] = useState(false);
+  const [preferidoCodigo, setPreferidoCodigo] = useState("");
+  const [alternativoCodigo, setAlternativoCodigo] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (step !== 5 || !planta || turnos.length === 0) return;
-    const turno = planta.turnos.find((t) => t.tipo === turnos[0]);
-    if (!turno) return;
-    setLoading(true);
-    setError(null);
-    api
-      .get<PerformancesResponse>(`/reservations/performances?turnoId=${turno.id}`)
-      .then((res) => {
-        const disponible = res.options.find((p) => p.available);
-        if (!disponible) {
-          throw new Error(res.noDisponibleTexto ?? "No hay ningún día disponible ahora mismo para ver el mapa de asientos");
-        }
-        return api.get<{ seats: SeatInfo[] }>(`/reservations/seatmap?turnoId=${turno.id}&perfId=${disponible.perfId}`);
-      })
-      .then((res) => setSeats(res.seats))
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
-  }, [step, planta, turnos]);
 
   function toggleDia(d: number) {
     setDias((prev) => (prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d]));
   }
 
-  function seatClick(seat: SeatInfo) {
-    if (!pickingAlternate) {
-      setPreferido(seat);
-      setPickingAlternate(true);
-    } else {
-      setAlternativo(seat);
-    }
-  }
-
   async function confirmar() {
-    if (!biblioteca || !planta || !preferido) return;
+    if (!biblioteca || !planta || !preferidoCodigo.trim()) return;
     setLoading(true);
     setError(null);
     try {
@@ -85,8 +59,8 @@ export function ScheduleWizard({
         valorTipoNumero: tipo === "n_reservas" ? valorNumero : undefined,
         valorTipoFecha: tipo === "hasta_fecha" ? valorFecha : undefined,
         diasSemana: dias,
-        asientoPreferidoCodigo: preferido.label,
-        asientoAlternativoCodigo: alternativo?.label,
+        asientoPreferidoCodigo: preferidoCodigo.trim(),
+        asientoAlternativoCodigo: alternativoCodigo.trim() || undefined,
       });
       onCreated(programacion);
     } catch (err) {
@@ -95,6 +69,8 @@ export function ScheduleWizard({
       setLoading(false);
     }
   }
+
+  const plano = planta ? PLANO_POR_PLANTA[planta.nombre] : undefined;
 
   return (
     <FullScreenPanel
@@ -105,8 +81,8 @@ export function ScheduleWizard({
         { label: "Turnos", value: turnos.length ? turnos.map((t) => (t === "manana" ? "Mañana" : "Tarde")).join(" y ") : null, onEdit: () => setStep(2) },
         { label: "Tipo", value: tipo, onEdit: () => setStep(3) },
         { label: "Días", value: dias.length ? dias.map((d) => DIAS[d].slice(0, 3)).join(", ") : null, onEdit: () => setStep(4) },
-        { label: "Opción 1 (preferida)", value: preferido?.label ?? null, onEdit: preferido ? () => setStep(5) : undefined },
-        { label: "Opción 2 (alternativa)", value: alternativo?.label ?? null },
+        { label: "Asiento preferido", value: preferidoCodigo || null, onEdit: preferidoCodigo ? () => setStep(5) : undefined },
+        { label: "Asiento alternativo", value: alternativoCodigo || null },
       ]}
     >
       {error && <p className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
@@ -229,25 +205,51 @@ export function ScheduleWizard({
       )}
 
       {step === 5 && (
-        <div>
-          {loading && <p className="mb-3 text-sm text-slate-500">Cargando mapa de asientos…</p>}
-          <SeatMapViewer
-            seats={seats}
-            mode="double"
-            selected={preferido}
-            selectedAlternate={alternativo}
-            pickingAlternate={pickingAlternate}
-            onSelect={seatClick}
-          />
-          <div className="mt-4 flex gap-2">
-            {preferido && (
-              <button
-                onClick={() => setStep(6)}
-                className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
-              >
-                Continuar {alternativo ? "" : "sin alternativa"}
-              </button>
+        <div className="grid max-w-3xl gap-6 md:grid-cols-2">
+          <div>
+            <p className="mb-2 text-sm text-slate-500">
+              Como las programaciones se preparan con antelación, el turno elegido puede que todavía no tenga hueco abierto en
+              PatronBase para ver el mapa de asientos en vivo. Consulta el plano de la sala y escribe el número de fila y
+              asiento que quieras.
+            </p>
+            {plano ? (
+              <img src={plano} alt={`Plano de ${planta?.nombre}`} className="w-full rounded-xl border border-slate-200" />
+            ) : (
+              <div className="flex h-48 items-center justify-center rounded-xl border border-dashed border-slate-300 text-sm text-slate-400">
+                No hay plano disponible para esta sala todavía
+              </div>
             )}
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">Asiento preferido (Opción 1)</label>
+              <input
+                value={preferidoCodigo}
+                onChange={(e) => setPreferidoCodigo(e.target.value)}
+                placeholder="Ej. Fila 3 - Asiento 24"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">Asiento alternativo (Opción 2, opcional)</label>
+              <input
+                value={alternativoCodigo}
+                onChange={(e) => setAlternativoCodigo(e.target.value)}
+                placeholder="Ej. Fila 3 - Asiento 25"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              />
+              <p className="mt-1 text-xs text-slate-400">
+                Se usa automáticamente si la Opción 1 no está libre en el momento de reservar.
+              </p>
+            </div>
+            <button
+              disabled={!preferidoCodigo.trim()}
+              onClick={() => setStep(6)}
+              className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
+            >
+              Continuar
+            </button>
           </div>
         </div>
       )}
@@ -265,10 +267,10 @@ export function ScheduleWizard({
               <span className="text-slate-500">Días:</span> {dias.map((d) => DIAS[d]).join(", ")}
             </p>
             <p>
-              <span className="text-slate-500">Preferido:</span> {preferido?.label}
+              <span className="text-slate-500">Preferido:</span> {preferidoCodigo}
             </p>
             <p>
-              <span className="text-slate-500">Alternativo:</span> {alternativo?.label ?? "—"}
+              <span className="text-slate-500">Alternativo:</span> {alternativoCodigo || "—"}
             </p>
           </div>
           <button

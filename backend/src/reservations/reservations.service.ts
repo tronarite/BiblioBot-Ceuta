@@ -39,6 +39,31 @@ function extraerNombreEntreComillas(texto: string): string | null {
   return match ? normalizarTexto(match[1]) : null;
 }
 
+/**
+ * Franja horaria aproximada de cada turno, para poder decidir si "hoy" está realmente
+ * en curso ahora mismo o si todavía es una sesión futura del mismo día (ej. una reserva
+ * de tarde no está "en curso" a media mañana). El horario exacto de cierre varía por
+ * sede ("hasta la hora de cierre"), así que se usa un margen amplio para no descartar
+ * sesiones de tarde que sigan abiertas.
+ */
+const FRANJA_HORARIA: Record<"manana" | "tarde", { desde: number; hasta: number }> = {
+  manana: { desde: 9, hasta: 15 },
+  tarde: { desde: 15, hasta: 21.5 },
+};
+
+function horaDecimal(date: Date): number {
+  return date.getHours() + date.getMinutes() / 60;
+}
+
+function estadoSesionHoy(turnoTipo: "manana" | "tarde" | null, ahora: Date): "en_curso" | "proxima" | "finalizada" {
+  if (!turnoTipo) return "en_curso";
+  const franja = FRANJA_HORARIA[turnoTipo];
+  const hora = horaDecimal(ahora);
+  if (hora < franja.desde) return "proxima";
+  if (hora >= franja.hasta) return "finalizada";
+  return "en_curso";
+}
+
 async function resolverTurno(tituloProduccion: string) {
   const normalizado = normalizarTexto(tituloProduccion);
 
@@ -105,17 +130,28 @@ export async function listReservations(usuarioId: string): Promise<{ enCurso: Re
       if (!fechaSesion || fechaSesion.getTime() < hoy.getTime()) continue;
 
       const resuelto = await resolverTurno(item.tituloProduccion);
+      const turnoTipo: "manana" | "tarde" | null =
+        resuelto?.turno.tipo === "manana" || resuelto?.turno.tipo === "tarde" ? resuelto.turno.tipo : null;
+
+      let estado: "en_curso" | "proxima";
+      if (fechaSesion.getTime() > hoy.getTime()) {
+        estado = "proxima";
+      } else {
+        const estadoHoy = estadoSesionHoy(turnoTipo, new Date());
+        if (estadoHoy === "finalizada") continue; // la sesión de hoy ya terminó, no se muestra
+        estado = estadoHoy;
+      }
 
       resultados.push({
         saleId: compra.saleId,
-        bibliotecaNombre: resuelto?.biblioteca.nombre ?? item.tituloProduccion,
+        bibliotecaNombre: resuelto?.biblioteca.nombre ?? item.tituloProduccion.replace(/^B\.P\.\s*/i, ""),
         plantaNombre: resuelto?.planta.nombre ?? item.sala,
-        turnoTipo: resuelto?.turno.tipo === "manana" || resuelto?.turno.tipo === "tarde" ? resuelto.turno.tipo : null,
+        turnoTipo,
         horario: resuelto?.turno.horario ?? null,
         fecha: fechaSesion.toISOString(),
         horaSesion: item.horaSesion,
         asiento: item.asiento,
-        estado: fechaSesion.getTime() === hoy.getTime() ? "en_curso" : "proxima",
+        estado,
       });
     }
   }

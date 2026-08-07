@@ -1,18 +1,38 @@
 import type { ReservaPatronBase } from "../../api/types";
 
+const TURNO_ESTILO: Record<"manana" | "tarde", { label: string; classes: string }> = {
+  manana: { label: "Mañana", classes: "bg-amber-100 text-amber-800" },
+  tarde: { label: "Tarde", classes: "bg-indigo-100 text-indigo-800" },
+};
+
 function ReservaCard({ reserva }: { reserva: ReservaPatronBase }) {
+  const turno = reserva.turnoTipo ? TURNO_ESTILO[reserva.turnoTipo] : null;
+
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm">
-      <p className="font-medium text-slate-800">{reserva.bibliotecaNombre}</p>
-      <p className="text-slate-500">
-        {reserva.plantaNombre}
-        {reserva.turnoTipo ? ` · ${reserva.turnoTipo === "manana" ? "Mañana" : "Tarde"}` : ""}
-      </p>
-      <p className="mt-1 text-slate-500">
-        {new Date(reserva.fecha).toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" })}
-        {reserva.horaSesion ? ` · ${reserva.horaSesion}` : ""}
-      </p>
-      <p className="mt-1 text-xs text-slate-400">Asiento: {reserva.asiento || "—"}</p>
+    <div className="flex items-stretch overflow-hidden rounded-xl border border-slate-200 bg-white">
+      <div
+        className={`flex w-16 shrink-0 flex-col items-center justify-center gap-0.5 text-xs font-semibold uppercase tracking-wide ${
+          turno ? turno.classes : "bg-slate-100 text-slate-500"
+        }`}
+      >
+        <span>{turno ? turno.label : "—"}</span>
+      </div>
+
+      <div className="flex-1 p-4">
+        <p className="text-base font-semibold leading-tight text-slate-800">{reserva.bibliotecaNombre}</p>
+        <p className="text-sm text-slate-500">{reserva.plantaNombre}</p>
+
+        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-600">
+          <span className="font-medium capitalize">
+            {new Date(reserva.fecha).toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" })}
+          </span>
+        </div>
+
+        <div className="mt-3 inline-flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-1.5 text-sm">
+          <span className="text-slate-400">Asiento</span>
+          <span className="font-mono font-medium text-slate-700">{reserva.asiento || "—"}</span>
+        </div>
+      </div>
     </div>
   );
 }
@@ -26,7 +46,7 @@ export function ReservationsList({ titulo, reservas, vacio }: { titulo: string; 
       ) : (
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           {reservas.map((r) => (
-            <ReservaCard key={r.saleId + r.fecha} reserva={r} />
+            <ReservaCard key={r.saleId + r.fecha + r.asiento} reserva={r} />
           ))}
         </div>
       )}

@@ -25,6 +25,30 @@ export type SeatInfo = {
   state: string;
 };
 
+/**
+ * Extrae el nº de fila y de asiento de una etiqueta tipo "SALA DE ESTUDIOS Fila 3 -
+ * Asiento 24". El nombre de sala que antecede varía por biblioteca (SALA DE ESTUDIOS,
+ * GENERAL, Sala General...), así que solo se usa fila+asiento para identificar la plaza.
+ */
+export function extraerFilaAsiento(texto: string): { fila: string; asiento: string } | null {
+  const match = texto.match(/fila\s*(\d+)[^\d]*asiento\s*(\d+)/i);
+  return match ? { fila: match[1], asiento: match[2] } : null;
+}
+
+/**
+ * Compara un código de asiento guardado (que puede haberlo escrito el usuario a mano,
+ * ej. al crear una programación para un turno que todavía no tiene mapa visible) contra
+ * la etiqueta real de un asiento del mapa en vivo. Si ambos tienen fila+asiento se
+ * comparan solo esos números (ignora el nombre de sala y mayúsculas); si no, cae a
+ * comparación exacta de texto.
+ */
+export function coincideAsiento(codigoGuardado: string, labelReal: string): boolean {
+  const a = extraerFilaAsiento(codigoGuardado);
+  const b = extraerFilaAsiento(labelReal);
+  if (a && b) return a.fila === b.fila && a.asiento === b.asiento;
+  return codigoGuardado.trim().toLowerCase() === labelReal.trim().toLowerCase();
+}
+
 export type SeatMapResult = {
   seats: SeatInfo[];
   confirmHref: string | null;

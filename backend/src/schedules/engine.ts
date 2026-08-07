@@ -3,7 +3,7 @@ import { prisma } from "../db";
 import { env } from "../env";
 import { logActivity } from "../activity/activity.service";
 import { getAuthenticatedSession } from "../patronbaseAccount/account.service";
-import { confirmSeats, getCart, getPerformances, getSeatMap, holdSeat, checkout as patronbaseCheckout } from "../patronbase/adapter";
+import { coincideAsiento, confirmSeats, getCart, getPerformances, getSeatMap, holdSeat, checkout as patronbaseCheckout } from "../patronbase/adapter";
 import { addDays, labelMatchesDate } from "../libraries/dateEs";
 import { diaTurnoPermitido } from "./rules";
 import type { Prisma } from "@prisma/client";
@@ -59,7 +59,7 @@ async function intentarTurno(
   );
 
   for (const codigo of candidatos) {
-    const asiento = seats.find((s) => s.label === codigo && s.state === "available");
+    const asiento = seats.find((s) => coincideAsiento(codigo, s.label) && s.state === "available");
     if (!asiento) continue;
 
     const held = await holdSeat(session, turno.patronbaseProdId, objetivo.perfId, asiento);
