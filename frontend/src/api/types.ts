@@ -1,0 +1,125 @@
+export type Rol = "admin" | "usuario";
+
+export type Usuario = {
+  id: string;
+  nombre: string;
+  email: string;
+  rol: Rol;
+  activo?: boolean;
+};
+
+export type Turno = {
+  id: string;
+  tipo: "manana" | "tarde";
+  horario: string;
+  patronbaseProdId: string;
+};
+
+export type Planta = {
+  id: string;
+  nombre: string;
+  reglasEspeciales: string | null;
+  turnos: Turno[];
+};
+
+export type Biblioteca = {
+  id: string;
+  nombre: string;
+  patronbaseCodigo: string;
+  reglasEspeciales: string | null;
+  plantas: Planta[];
+};
+
+export type EstadoDisponibilidad =
+  | "disponible_hoy_manana"
+  | "disponible_solo_hoy"
+  | "disponible_solo_manana"
+  | "no_disponible";
+
+export type DisponibilidadBiblioteca = {
+  bibliotecaId: string;
+  nombre: string;
+  estado: EstadoDisponibilidad;
+  proximoDiaDisponibleTexto?: string;
+};
+
+export type PerformanceOption = {
+  perfId: string;
+  label: string;
+  available: boolean;
+  availableFromText?: string;
+};
+
+export type SeatInfo = {
+  seatId: string;
+  rowId: string;
+  areaId: string;
+  sectionId: string;
+  seatTypeId: string;
+  label: string;
+  state: string;
+};
+
+export type SeatMapResult = {
+  seats: SeatInfo[];
+  confirmHref: string | null;
+};
+
+export type Reserva = {
+  id: string;
+  bibliotecaId: string;
+  plantaId: string;
+  turnoId: string;
+  asientoCodigo: string;
+  fecha: string;
+  estado: string;
+  origen: string;
+  biblioteca: Biblioteca;
+  planta: Planta;
+  turno: Turno;
+};
+
+export type ReservationsResponse = {
+  enCurso: Reserva[];
+  proximas: Reserva[];
+};
+
+export type Programacion = {
+  id: string;
+  bibliotecaId: string;
+  plantaId: string;
+  turnos: string;
+  tipo: "n_reservas" | "hasta_fecha" | "indefinida";
+  valorTipoNumero: number | null;
+  valorTipoFecha: string | null;
+  diasSemana: string;
+  asientoPreferidoCodigo: string;
+  asientoAlternativoCodigo: string | null;
+  estado: "activa" | "pausada" | "finalizada";
+  contadorReservasRealizadas: number;
+  proximaEjecucion: string | null;
+  biblioteca: Biblioteca;
+  planta: Planta;
+};
+
+export type ActividadLog = {
+  id: string;
+  tipoEvento: string;
+  mensaje: string;
+  fecha: string;
+  programacionId: string | null;
+};
+
+export type HorarioExtraordinario = {
+  id: string;
+  bibliotecaId: string;
+  biblioteca: Biblioteca;
+  fecha: string;
+  descripcion: string;
+  horario: string;
+};
+
+export type CuentaPatronBaseStatus = {
+  estadoVinculacion: "no_vinculada" | "vinculada" | "error";
+  patronbaseEmail: string | null;
+};

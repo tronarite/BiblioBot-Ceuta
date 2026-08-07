@@ -1,0 +1,158 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// SQLite no soporta enums nativos en Prisma: los valores permitidos se validan en la
+// capa de aplicación (zod + tipos TypeScript en cada servicio), no en el esquema.
+// Rol: "admin" | "usuario"
+// EstadoVinculacion: "no_vinculada" | "vinculada" | "error"
+// TipoTurno: "manana" | "tarde"
+// EstadoReserva: "en_curso" | "proxima" | "cancelada" | "fallida"
+// OrigenReserva: "manual" | "programacion"
+// TipoProgramacion: "n_reservas" | "hasta_fecha" | "indefinida"
+// EstadoProgramacion: "activa" | "pausada" | "finalizada"
+// TipoEventoLog: "reserva_exitosa" | "reserva_fallida" | "reintento" | "puesto_retirado" | "otro"
+
+model Usuario {
+  id                  String    @id @default(cuid())
+  nombre              String
+  email               String    @unique
+  passwordHash        String
+  rol                 String    @default("usuario")
+  activo              Boolean   @default(true)
+  fechaCreacion       DateTime  @default(now())
+
+  cuentaPatronBase    CuentaPatronBase?
+  reservas            Reserva[]
+  programaciones      Programacion[]
+  actividad           ActividadLog[]
+  mensajesDashboard   MensajeDashboard[]
+  horariosCreados     HorarioExtraordinario[]
+}
+
+model CuentaPatronBase {
+  id                   String    @id @default(cuid())
+  usuarioId            String    @unique
+  usuario              Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  patronbaseEmail      String
+  credencialesCifrado  String
+  estadoVinculacion    String    @default("no_vinculada")
+  ultimaSincronizacion DateTime?
+  createdAt            DateTime  @default(now())
+}
+
+model Biblioteca {
+  id                      String    @id @default(cuid())
+  nombre                  String    @unique
+  patronbaseCodigo        String
+  reglasEspeciales        String?   // JSON: ej. reglas de días/turnos no reservables
+
+  plantas                 Planta[]
+  reservas                Reserva[]
+  programaciones          Programacion[]
+  horariosExtraordinarios HorarioExtraordinario[]
+}
+
+model Planta {
+  id                  String    @id @default(cuid())
+  bibliotecaId        String
+  biblioteca          Biblioteca @relation(fields: [bibliotecaId], references: [id], onDelete: Cascade)
+  nombre              String
+  reglasEspeciales    String?   // JSON: ej. "cerrada sabado manana"
+
+  turnos              Turno[]
+  reservas            Reserva[]
+  programaciones      Programacion[]
+}
+
+model Turno {
+  id                  String    @id @default(cuid())
+  plantaId            String
+  planta              Planta    @relation(fields: [plantaId], references: [id], onDelete: Cascade)
+  tipo                String    // "manana" | "tarde"
+  horario             String
+  patronbaseProdId    String    // identificador de "producción" en PatronBase (sala+turno)
+
+  reservas            Reserva[]
+}
+
+model Reserva {
+  id                  String        @id @default(cuid())
+  usuarioId           String
+  usuario             Usuario       @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  bibliotecaId        String
+  biblioteca          Biblioteca    @relation(fields: [bibliotecaId], references: [id])
+  plantaId            String
+  planta              Planta        @relation(fields: [plantaId], references: [id])
+  turnoId             String
+  turno               Turno         @relation(fields: [turnoId], references: [id])
+  asientoCodigo       String
+  fecha               DateTime
+  estado              String        @default("proxima")
+  origen              String        @default("manual")
+  programacionId      String?
+  programacion        Programacion? @relation(fields: [programacionId], references: [id])
+  patronbaseSaleId    String?
+  createdAt           DateTime      @default(now())
+}
+
+model Programacion {
+  id                          String    @id @default(cuid())
+  usuarioId                   String
+  usuario                     Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  bibliotecaId                String
+  biblioteca                  Biblioteca @relation(fields: [bibliotecaId], references: [id])
+  plantaId                    String
+  planta                      Planta    @relation(fields: [plantaId], references: [id])
+  turnos                      String    // JSON array: ["manana","tarde"]
+  tipo                        String    // "n_reservas" | "hasta_fecha" | "indefinida"
+  valorTipoNumero             Int?
+  valorTipoFecha               DateTime?
+  diasSemana                  String    // JSON array de 0-6 (dom-sab)
+  asientoPreferidoCodigo      String
+  asientoAlternativoCodigo    String?
+  estado                      String    @default("activa")
+  contadorReservasRealizadas  Int       @default(0)
+  proximaEjecucion            DateTime?
+  ultimoIntentoFecha          String?   // YYYY-MM-DD del último día en que ya se intentó, evita duplicados
+  createdAt                   DateTime  @default(now())
+
+  reservas                    Reserva[]
+  actividad                   ActividadLog[]
+}
+
+model ActividadLog {
+  id              String         @id @default(cuid())
+  usuarioId       String
+  usuario         Usuario        @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  programacionId  String?
+  programacion    Programacion?  @relation(fields: [programacionId], references: [id])
+  tipoEvento      String
+  mensaje         String
+  fecha           DateTime       @default(now())
+}
+
+model MensajeDashboard {
+  id                  String    @id @default(cuid())
+  texto               String
+  autorId             String
+  autor               Usuario   @relation(fields: [autorId], references: [id])
+  fechaActualizacion  DateTime  @updatedAt
+}
+
+model HorarioExtraordinario {
+  id            String      @id @default(cuid())
+  bibliotecaId  String
+  biblioteca    Biblioteca  @relation(fields: [bibliotecaId], references: [id], onDelete: Cascade)
+  fecha         DateTime
+  descripcion   String
+  horario       String
+  autorId       String
+  autor         Usuario     @relation(fields: [autorId], references: [id])
+  createdAt     DateTime    @default(now())
+}
