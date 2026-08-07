@@ -5,29 +5,127 @@ import {
   confirmSeats,
   getCart,
   getPerformances,
+  getSaleDetail,
+  getSalesHistory,
   getSeatMap,
   holdSeat,
   checkout as patronbaseCheckout,
 } from "../patronbase/adapter";
 import { PatronBaseSession } from "../patronbase/session";
 import { withAccountLock } from "../patronbase/accountLock";
+import { addDays, parseSpanishDate, startOfDay } from "../libraries/dateEs";
 
-export async function listReservations(usuarioId: string) {
-  const reservas = await prisma.reserva.findMany({
-    where: { usuarioId, estado: { in: ["en_curso", "proxima"] } },
-    include: { biblioteca: true, planta: true, turno: true },
-    orderBy: { fecha: "asc" },
+export type ReservaPatronBase = {
+  saleId: string;
+  bibliotecaNombre: string;
+  plantaNombre: string;
+  turnoTipo: "manana" | "tarde" | null;
+  horario: string | null;
+  fecha: string;
+  horaSesion: string;
+  asiento: string;
+  estado: "en_curso" | "proxima";
+};
+
+function normalizarTexto(texto: string): string {
+  return texto
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "");
+}
+
+function extraerNombreEntreComillas(texto: string): string | null {
+  const match = texto.match(/"([^"]+)"/);
+  return match ? normalizarTexto(match[1]) : null;
+}
+
+async function resolverTurno(tituloProduccion: string) {
+  const normalizado = normalizarTexto(tituloProduccion);
+
+  const tipo: "manana" | "tarde" | null = normalizado.includes("manana")
+    ? "manana"
+    : normalizado.includes("tarde")
+      ? "tarde"
+      : null;
+  if (!tipo) return null;
+
+  const bibliotecas = await prisma.biblioteca.findMany({ include: { plantas: { include: { turnos: true } } } });
+  const biblioteca = bibliotecas.find((b) => {
+    const nombreCorto = extraerNombreEntreComillas(b.nombre);
+    return nombreCorto && normalizado.includes(nombreCorto);
+  });
+  if (!biblioteca) return null;
+
+  let planta = biblioteca.plantas[0];
+  if (biblioteca.plantas.length > 1) {
+    const numeroMatch = normalizado.match(/p\.?\s*(\d+)/);
+    const encontrada = numeroMatch
+      ? biblioteca.plantas.find((p) => p.nombre.includes(numeroMatch[1]))
+      : biblioteca.plantas.find((p) => normalizado.includes(normalizarTexto(p.nombre)));
+    if (!encontrada) return null;
+    planta = encontrada;
+  }
+
+  const turno = planta.turnos.find((t) => t.tipo === tipo);
+  if (!turno) return null;
+
+  return { biblioteca, planta, turno };
+}
+
+/**
+ * Lee directamente el historial de compras de la cuenta PatronBase vinculada (no la
+ * tabla local Reserva) para que "en curso"/"próximas" reflejen siempre el estado real
+ * de la cuenta, se haya reservado desde BiblioBot o directamente en PatronBase.
+ * Solo hace falta mirar compras de hoy/ayer: la ventana de reserva de PatronBase nunca
+ * permite comprar con más de un día de antelación, así que cualquier sesión futura o en
+ * curso viene necesariamente de una compra hecha hoy o ayer.
+ */
+export async function listReservations(usuarioId: string): Promise<{ enCurso: ReservaPatronBase[]; proximas: ReservaPatronBase[] }> {
+  const cuenta = await prisma.cuentaPatronBase.findUnique({ where: { usuarioId } });
+  if (!cuenta || cuenta.estadoVinculacion !== "vinculada") {
+    return { enCurso: [], proximas: [] };
+  }
+
+  const session = await getAuthenticatedSession(usuarioId);
+  const historial = await getSalesHistory(session);
+
+  const hoy = startOfDay(new Date());
+  const ayer = addDays(hoy, -1);
+
+  const candidatas = historial.filter((h) => {
+    const fechaCompra = parseSpanishDate(h.fecha);
+    return fechaCompra !== null && fechaCompra.getTime() >= ayer.getTime();
   });
 
-  const hoy = new Date();
-  hoy.setHours(0, 0, 0, 0);
-  const manana = new Date(hoy);
-  manana.setDate(manana.getDate() + 1);
+  const resultados: ReservaPatronBase[] = [];
+  for (const compra of candidatas) {
+    const items = await getSaleDetail(session, compra.saleId);
+    for (const item of items) {
+      const fechaSesion = parseSpanishDate(item.fechaSesionTexto);
+      if (!fechaSesion || fechaSesion.getTime() < hoy.getTime()) continue;
 
-  const enCurso = reservas.filter((r) => r.fecha >= hoy && r.fecha < manana);
-  const proximas = reservas.filter((r) => r.fecha >= manana);
+      const resuelto = await resolverTurno(item.tituloProduccion);
 
-  return { enCurso, proximas };
+      resultados.push({
+        saleId: compra.saleId,
+        bibliotecaNombre: resuelto?.biblioteca.nombre ?? item.tituloProduccion,
+        plantaNombre: resuelto?.planta.nombre ?? item.sala,
+        turnoTipo: resuelto?.turno.tipo === "manana" || resuelto?.turno.tipo === "tarde" ? resuelto.turno.tipo : null,
+        horario: resuelto?.turno.horario ?? null,
+        fecha: fechaSesion.toISOString(),
+        horaSesion: item.horaSesion,
+        asiento: item.asiento,
+        estado: fechaSesion.getTime() === hoy.getTime() ? "en_curso" : "proxima",
+      });
+    }
+  }
+
+  resultados.sort((a, b) => a.fecha.localeCompare(b.fecha));
+
+  return {
+    enCurso: resultados.filter((r) => r.estado === "en_curso"),
+    proximas: resultados.filter((r) => r.estado === "proxima"),
+  };
 }
 
 export async function getPerformancesForTurno(turnoId: string) {

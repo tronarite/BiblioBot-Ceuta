@@ -103,7 +103,15 @@ export async function listProductions(session: PatronBaseSession, category?: str
   return productions;
 }
 
-export async function getPerformances(session: PatronBaseSession, prodId: string): Promise<PerformanceOption[]> {
+export type PerformancesResult = {
+  options: PerformanceOption[];
+  // Cuando ni siquiera "hoy" tiene hueco (la sala está totalmente cerrada por ahora),
+  // PatronBase no muestra ningún día en absoluto: solo un aviso de tipo
+  // "La cita previa estará disponible el 9 de ago de 2026, 14:00 h."
+  noDisponibleTexto: string | null;
+};
+
+export async function getPerformances(session: PatronBaseSession, prodId: string): Promise<PerformancesResult> {
   const res = await session.get(`/Productions/${encodeURIComponent(prodId)}/Performances`);
   const $ = cheerio.load(res.text);
   const options: PerformanceOption[] = [];
@@ -128,7 +136,15 @@ export async function getPerformances(session: PatronBaseSession, prodId: string
     });
   });
 
-  return options;
+  let noDisponibleTexto: string | null = null;
+  if (options.length === 0) {
+    const aviso = $(".pb_instruction.message, .pb_p.pb_instruction")
+      .filter((_, el) => /estar[áa] disponible/i.test($(el).text()))
+      .first();
+    noDisponibleTexto = aviso.length ? cleanText(aviso.text()) : null;
+  }
+
+  return { options, noDisponibleTexto };
 }
 
 export async function getSeatMap(
@@ -316,21 +332,39 @@ export async function getSalesHistory(session: PatronBaseSession): Promise<SaleH
   return items;
 }
 
-export async function getSaleDetail(session: PatronBaseSession, saleId: string): Promise<Record<string, string>> {
+export type SaleDetailItem = {
+  tituloProduccion: string;
+  fechaSesionTexto: string;
+  horaSesion: string;
+  sala: string;
+  asiento: string;
+};
+
+/**
+ * Una compra puede incluir varias sesiones (ej. mañana y tarde compradas juntas), cada
+ * una con su propia línea "{producción} — {fecha} a las {hora} horas ({sala})" seguida
+ * de su propia línea de asiento "(... Fila X - Asiento Y)". Se emparejan por orden de
+ * aparición en la página.
+ */
+export async function getSaleDetail(session: PatronBaseSession, saleId: string): Promise<SaleDetailItem[]> {
   const res = await session.get(`/Patron/ViewSale?sale=${encodeURIComponent(saleId)}`);
   const $ = cheerio.load(res.text);
   const text = $("body").text();
 
-  const extract = (label: string) => {
-    const re = new RegExp(`${label}:\\s*([^\\n]+)`, "i");
-    const match = text.match(re);
-    return match ? cleanText(match[1]) : "";
-  };
+  // El título de la producción va pegado sin separador al texto anterior en el HTML
+  // aplanado (ej. "...a las 13:30 horasB.P. \"El Morro\" P. 0 MAÑANA 2026 — viernes..."),
+  // así que se ancla el inicio en "B.P." (todas las producciones empiezan así) en vez de
+  // en un salto de línea, que aquí no existe.
+  const sessionMatches = Array.from(
+    text.matchAll(/(B\.P\.[^\n—]*?)\s*—\s*([^\n]+?)\s+a las\s+(\d{1,2}:\d{2})\s+horas\s*\(([^)]+)\)/g),
+  );
+  const seatMatches = Array.from(text.matchAll(/\(([^)]*Fila[^)]*)\)/gi));
 
-  return {
-    idVenta: extract("ID de la Venta"),
-    fechaVenta: extract("Fecha de la venta"),
-    asiento: (text.match(/\(([^)]*Fila[^)]*)\)/i) ?? [, ""])[1],
-    total: extract("Total"),
-  };
+  return sessionMatches.map((m, i) => ({
+    tituloProduccion: cleanText(m[1]),
+    fechaSesionTexto: cleanText(m[2]),
+    horaSesion: m[3],
+    sala: cleanText(m[4]),
+    asiento: seatMatches[i] ? cleanText(seatMatches[i][1]) : "",
+  }));
 }

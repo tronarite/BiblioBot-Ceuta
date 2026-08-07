@@ -39,3 +39,35 @@ export function addDays(date: Date, days: number): Date {
   copy.setDate(copy.getDate() + days);
   return copy;
 }
+
+export function startOfDay(date: Date): Date {
+  const copy = new Date(date);
+  copy.setHours(0, 0, 0, 0);
+  return copy;
+}
+
+/**
+ * Parsea una fecha en español completa (con año), en cualquiera de los dos formatos que
+ * usa PatronBase: "17 de julio de 2026" (páginas de detalle) o "julio 17 2026"
+ * (columna Fecha del historial de compras).
+ */
+export function parseSpanishDate(text: string): Date | null {
+  const normalized = text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "");
+
+  let match = normalized.match(/(\d{1,2})\s+de\s+([a-z]{3,})\s+de\s+(\d{4})/);
+  if (match) {
+    const month = MESES[match[2].slice(0, 3)];
+    if (month !== undefined) return new Date(Number(match[3]), month, Number(match[1]));
+  }
+
+  match = normalized.match(/([a-z]{3,})\s+(\d{1,2})\s+(\d{4})/);
+  if (match) {
+    const month = MESES[match[1].slice(0, 3)];
+    if (month !== undefined) return new Date(Number(match[3]), month, Number(match[2]));
+  }
+
+  return null;
+}

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../../api/client";
-import type { Biblioteca, PerformanceOption, Planta, Programacion, SeatInfo } from "../../api/types";
+import type { Biblioteca, Planta, PerformancesResponse, Programacion, SeatInfo } from "../../api/types";
 import { FullScreenPanel } from "../../components/FullScreenPanel";
 import { SeatMapViewer } from "../../components/SeatMapViewer";
 
@@ -46,10 +46,12 @@ export function ScheduleWizard({
     setLoading(true);
     setError(null);
     api
-      .get<PerformanceOption[]>(`/reservations/performances?turnoId=${turno.id}`)
-      .then((performances) => {
-        const disponible = performances.find((p) => p.available);
-        if (!disponible) throw new Error("No hay ningún día disponible ahora mismo para ver el mapa de asientos");
+      .get<PerformancesResponse>(`/reservations/performances?turnoId=${turno.id}`)
+      .then((res) => {
+        const disponible = res.options.find((p) => p.available);
+        if (!disponible) {
+          throw new Error(res.noDisponibleTexto ?? "No hay ningún día disponible ahora mismo para ver el mapa de asientos");
+        }
         return api.get<{ seats: SeatInfo[] }>(`/reservations/seatmap?turnoId=${turno.id}&perfId=${disponible.perfId}`);
       })
       .then((res) => setSeats(res.seats))

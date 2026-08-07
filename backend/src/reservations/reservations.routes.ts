@@ -12,8 +12,12 @@ export const reservationsRouter = Router();
 reservationsRouter.use(requireAuth);
 
 reservationsRouter.get("/", async (req, res) => {
-  const data = await listReservations(req.user!.sub);
-  res.json(data);
+  try {
+    const data = await listReservations(req.user!.sub);
+    res.json(data);
+  } catch (err) {
+    res.status(502).json({ error: (err as Error).message });
+  }
 });
 
 reservationsRouter.get("/performances", async (req, res) => {

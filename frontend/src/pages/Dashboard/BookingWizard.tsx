@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../../api/client";
 import { parseSpanishDateLabel } from "../../api/dateEs";
-import type { Biblioteca, PerformanceOption, Planta, Reserva, SeatInfo, Turno } from "../../api/types";
+import type { Biblioteca, EstadoTurno, PerformanceOption, PerformancesResponse, Planta, SeatInfo, Turno } from "../../api/types";
 import { FullScreenPanel } from "../../components/FullScreenPanel";
 import { SeatMapViewer } from "../../components/SeatMapViewer";
 
@@ -14,7 +14,7 @@ export function BookingWizard({
 }: {
   bibliotecas: Biblioteca[];
   onClose: () => void;
-  onCreated: (reserva: Reserva) => void;
+  onCreated: () => void;
 }) {
   const [step, setStep] = useState<Step>(1);
   const [planta, setPlanta] = useState<Planta | null>(null);
@@ -25,16 +25,24 @@ export function BookingWizard({
   const [seat, setSeat] = useState<SeatInfo | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [estadoTurnos, setEstadoTurnos] = useState<EstadoTurno[] | null>(null);
 
   const biblioteca = planta ? bibliotecas.find((b) => b.plantas.some((p) => p.id === planta.id)) ?? null : null;
+
+  useEffect(() => {
+    api
+      .get<EstadoTurno[]>("/libraries/turnos-estado")
+      .then(setEstadoTurnos)
+      .catch(() => setEstadoTurnos([]));
+  }, []);
 
   useEffect(() => {
     if (step !== 2 || !turno) return;
     setLoading(true);
     setError(null);
     api
-      .get<PerformanceOption[]>(`/reservations/performances?turnoId=${turno.id}`)
-      .then(setPerformances)
+      .get<PerformancesResponse>(`/reservations/performances?turnoId=${turno.id}`)
+      .then((res) => setPerformances(res.options))
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }, [step, turno]);
@@ -56,7 +64,7 @@ export function BookingWizard({
     setError(null);
     try {
       const fecha = parseSpanishDateLabel(perf.label) ?? new Date();
-      const reserva = await api.post<Reserva>("/reservations", {
+      await api.post("/reservations", {
         turnoId: turno.id,
         perfId: perf.perfId,
         fecha: fecha.toISOString(),
@@ -69,7 +77,7 @@ export function BookingWizard({
           label: seat.label,
         },
       });
-      onCreated(reserva);
+      onCreated();
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo completar la reserva");
     } finally {
@@ -96,26 +104,38 @@ export function BookingWizard({
               <h3 className="mb-2 font-medium text-slate-700">{b.nombre}</h3>
               <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
                 {b.plantas.flatMap((p) =>
-                  p.turnos.map((t) => (
-                    <button
-                      key={t.id}
-                      onClick={() => {
-                        setPlanta(p);
-                        setTurno(t);
-                        setPerf(null);
-                        setSeat(null);
-                        setStep(2);
-                      }}
-                      className={`rounded-xl border p-3 text-left text-sm transition hover:border-brand-400 ${
-                        turno?.id === t.id ? "border-brand-500 bg-brand-50" : "border-slate-200"
-                      }`}
-                    >
-                      <p className="font-medium">
-                        {p.nombre} · {t.tipo === "manana" ? "Mañana" : "Tarde"}
-                      </p>
-                      <p className="mt-1 text-xs text-slate-500">{t.horario}</p>
-                    </button>
-                  )),
+                  p.turnos.map((t) => {
+                    const estado = estadoTurnos?.find((e) => e.turnoId === t.id);
+                    const deshabilitado = estado ? !estado.disponibleAhora : false;
+                    return (
+                      <button
+                        key={t.id}
+                        disabled={deshabilitado}
+                        title={deshabilitado ? (estado?.mensaje ?? undefined) : undefined}
+                        onClick={() => {
+                          setPlanta(p);
+                          setTurno(t);
+                          setPerf(null);
+                          setSeat(null);
+                          setStep(2);
+                        }}
+                        className={`rounded-xl border p-3 text-left text-sm transition ${
+                          deshabilitado
+                            ? "cursor-not-allowed border-slate-100 bg-slate-50 text-slate-400"
+                            : `hover:border-brand-400 ${turno?.id === t.id ? "border-brand-500 bg-brand-50" : "border-slate-200"}`
+                        }`}
+                      >
+                        <p className="font-medium">
+                          {p.nombre} · {t.tipo === "manana" ? "Mañana" : "Tarde"}
+                        </p>
+                        {deshabilitado ? (
+                          <p className="mt-1 text-xs">{estado?.mensaje ?? "No disponible por ahora"}</p>
+                        ) : (
+                          <p className="mt-1 text-xs text-slate-500">{t.horario}</p>
+                        )}
+                      </button>
+                    );
+                  }),
                 )}
               </div>
             </div>

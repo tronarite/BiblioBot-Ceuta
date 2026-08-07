@@ -50,6 +50,17 @@ export type PerformanceOption = {
   availableFromText?: string;
 };
 
+export type PerformancesResponse = {
+  options: PerformanceOption[];
+  noDisponibleTexto: string | null;
+};
+
+export type EstadoTurno = {
+  turnoId: string;
+  disponibleAhora: boolean;
+  mensaje: string | null;
+};
+
 export type SeatInfo = {
   seatId: string;
   rowId: string;
@@ -65,23 +76,21 @@ export type SeatMapResult = {
   confirmHref: string | null;
 };
 
-export type Reserva = {
-  id: string;
-  bibliotecaId: string;
-  plantaId: string;
-  turnoId: string;
-  asientoCodigo: string;
+export type ReservaPatronBase = {
+  saleId: string;
+  bibliotecaNombre: string;
+  plantaNombre: string;
+  turnoTipo: "manana" | "tarde" | null;
+  horario: string | null;
   fecha: string;
-  estado: string;
-  origen: string;
-  biblioteca: Biblioteca;
-  planta: Planta;
-  turno: Turno;
+  horaSesion: string;
+  asiento: string;
+  estado: "en_curso" | "proxima";
 };
 
 export type ReservationsResponse = {
-  enCurso: Reserva[];
-  proximas: Reserva[];
+  enCurso: ReservaPatronBase[];
+  proximas: ReservaPatronBase[];
 };
 
 export type Programacion = {

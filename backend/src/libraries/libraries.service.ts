@@ -47,8 +47,9 @@ export async function getDisponibilidad(): Promise<DisponibilidadBiblioteca[]> {
     for (const planta of biblioteca.plantas) {
       for (const turno of planta.turnos) {
         let performances;
+        let noDisponibleTexto: string | null = null;
         try {
-          performances = await getPerformances(session, turno.patronbaseProdId);
+          ({ options: performances, noDisponibleTexto } = await getPerformances(session, turno.patronbaseProdId));
         } catch {
           continue;
         }
@@ -67,7 +68,7 @@ export async function getDisponibilidad(): Promise<DisponibilidadBiblioteca[]> {
           const primeraDisponible = performances.find((p) => p.available);
           if (!hoyOpt?.available && !mananaOpt?.available) {
             const primeraTextoBloqueo = performances.find((p) => p.availableFromText)?.availableFromText;
-            proximoTexto = primeraTextoBloqueo ?? (primeraDisponible ? primeraDisponible.label : undefined);
+            proximoTexto = primeraTextoBloqueo ?? noDisponibleTexto ?? (primeraDisponible ? primeraDisponible.label : undefined);
           }
         }
       }
@@ -88,4 +89,40 @@ export async function getDisponibilidad(): Promise<DisponibilidadBiblioteca[]> {
   }
 
   return resultados;
+}
+
+export type EstadoTurno = {
+  turnoId: string;
+  disponibleAhora: boolean;
+  mensaje: string | null;
+};
+
+/**
+ * Para cada turno, indica si hay al menos un día reservable ahora mismo. Cuando no lo
+ * hay (la sala está totalmente cerrada por el momento, ni siquiera "hoy" tiene hueco),
+ * PatronBase no ofrece ningún día en el selector: solo un aviso de cuándo se abrirá.
+ * Se usa para deshabilitar esas opciones en el asistente de reserva y mostrar ese aviso.
+ */
+export async function getEstadoTurnos(): Promise<EstadoTurno[]> {
+  const bibliotecas = await listBibliotecas();
+  const turnos = bibliotecas.flatMap((b) => b.plantas.flatMap((p) => p.turnos));
+
+  // Peticiones públicas e independientes entre sí: una sesión por turno para poder
+  // consultarlas todas en paralelo sin compartir estado de cookies innecesariamente.
+  return Promise.all(
+    turnos.map(async (turno): Promise<EstadoTurno> => {
+      try {
+        const session = new PatronBaseSession();
+        const { options, noDisponibleTexto } = await getPerformances(session, turno.patronbaseProdId);
+        const hayAlguno = options.some((o) => o.available);
+        return {
+          turnoId: turno.id,
+          disponibleAhora: hayAlguno,
+          mensaje: hayAlguno ? null : (noDisponibleTexto ?? options.find((o) => o.availableFromText)?.availableFromText ?? null),
+        };
+      } catch {
+        return { turnoId: turno.id, disponibleAhora: false, mensaje: "No se pudo consultar la disponibilidad" };
+      }
+    }),
+  );
 }

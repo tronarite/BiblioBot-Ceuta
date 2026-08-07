@@ -46,7 +46,7 @@ async function intentarTurno(
     return { exito: false, motivo: `No se pudo autenticar en PatronBase: ${(err as Error).message}` };
   }
 
-  const performances = await getPerformances(session, turno.patronbaseProdId);
+  const { options: performances } = await getPerformances(session, turno.patronbaseProdId);
   const objetivo = performances.find((p) => labelMatchesDate(p.label, fechaObjetivo));
   if (!objetivo || !objetivo.available) {
     return { exito: false, motivo: "El hueco para ese día todavía no está abierto en PatronBase" };
