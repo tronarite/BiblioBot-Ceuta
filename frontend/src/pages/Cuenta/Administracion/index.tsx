@@ -22,12 +22,12 @@ export function AdministracionPage() {
         <h1 className="mt-1 text-xl font-semibold text-slate-800 dark:text-slate-100">Administración</h1>
       </div>
 
-      <div className="flex gap-1 rounded-lg bg-slate-100 p-1 text-sm w-fit dark:bg-slate-800">
+      <div className="flex max-w-full gap-1 overflow-x-auto rounded-lg bg-slate-100 p-1 text-sm dark:bg-slate-800">
         {TABS.map((t) => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
-            className={`rounded-md px-3 py-1.5 ${
+            className={`whitespace-nowrap rounded-md px-3 py-1.5 ${
               tab === t.id
                 ? "bg-white font-medium shadow dark:bg-slate-700 dark:text-slate-100"
                 : "text-slate-500 dark:text-slate-400"

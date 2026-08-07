@@ -42,7 +42,7 @@ export function CuentaPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-xl font-semibold text-slate-800 dark:text-slate-100">Cuenta</h1>
         {usuario?.rol === "admin" && (
           <Link to="/cuenta/administracion" className="text-sm font-medium text-brand-600 hover:underline dark:text-brand-400">

@@ -50,7 +50,7 @@ export function PatronBaseLink() {
       <h2 className="mb-3 font-medium text-slate-800 dark:text-slate-100">Cuenta PatronBase</h2>
 
       {status.estadoVinculacion === "vinculada" ? (
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
               Vinculada

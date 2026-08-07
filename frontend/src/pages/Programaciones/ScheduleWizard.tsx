@@ -96,7 +96,7 @@ export function ScheduleWizard({
           {bibliotecas.map((b) => (
             <div key={b.id}>
               <h3 className="mb-2 font-medium text-slate-700 dark:text-slate-200">{b.nombre}</h3>
-              <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
                 {b.plantas.map((p) => (
                   <button
                     key={p.id}

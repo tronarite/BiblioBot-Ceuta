@@ -104,7 +104,7 @@ export function BookingWizard({
           {bibliotecas.map((b) => (
             <div key={b.id}>
               <h3 className="mb-2 font-medium text-slate-700 dark:text-slate-200">{b.nombre}</h3>
-              <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
                 {b.plantas.flatMap((p) =>
                   p.turnos.map((t) => {
                     const estado = estadoTurnos?.find((e) => e.turnoId === t.id);
@@ -152,7 +152,7 @@ export function BookingWizard({
       {step === 2 && (
         <div>
           {loading && <p className="text-sm text-slate-500 dark:text-slate-400">Consultando días disponibles…</p>}
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
             {performances.map((p) => (
               <button
                 key={p.perfId}

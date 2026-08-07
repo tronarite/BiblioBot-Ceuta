@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { useTheme } from "../theme/ThemeContext";
@@ -40,6 +41,14 @@ function ThemeToggle() {
 
 export function AppLayout() {
   const { usuario, logout } = useAuth();
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const navLinkClass = ({ isActive }: { isActive: boolean }) =>
+    `rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+      isActive
+        ? "bg-brand-50 text-brand-700 dark:bg-brand-900/40 dark:text-brand-300"
+        : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700"
+    }`;
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
@@ -47,25 +56,16 @@ export function AppLayout() {
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
           <div className="flex items-center gap-8">
             <span className="text-lg font-semibold text-brand-800 dark:text-brand-300">BiblioBot</span>
-            <nav className="flex gap-1">
+            <nav className="hidden gap-1 sm:flex">
               {tabs.map((tab) => (
-                <NavLink
-                  key={tab.to}
-                  to={tab.to}
-                  className={({ isActive }) =>
-                    `rounded-lg px-3 py-1.5 text-sm font-medium transition ${
-                      isActive
-                        ? "bg-brand-50 text-brand-700 dark:bg-brand-900/40 dark:text-brand-300"
-                        : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700"
-                    }`
-                  }
-                >
+                <NavLink key={tab.to} to={tab.to} className={navLinkClass}>
                   {tab.label}
                 </NavLink>
               ))}
             </nav>
           </div>
-          <div className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-300">
+
+          <div className="hidden items-center gap-3 text-sm text-slate-600 dark:text-slate-300 sm:flex">
             <ThemeToggle />
             <span>{usuario?.nombre}</span>
             <button
@@ -75,7 +75,46 @@ export function AppLayout() {
               Salir
             </button>
           </div>
+
+          <div className="flex items-center gap-1 sm:hidden">
+            <ThemeToggle />
+            <button
+              onClick={() => setMenuOpen((v) => !v)}
+              aria-label="Abrir menú"
+              aria-expanded={menuOpen}
+              className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="h-6 w-6">
+                {menuOpen ? (
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5M3.75 17.25h16.5" />
+                )}
+              </svg>
+            </button>
+          </div>
         </div>
+
+        {menuOpen && (
+          <div className="border-t border-slate-200 px-4 py-3 dark:border-slate-700 sm:hidden">
+            <nav className="flex flex-col gap-1">
+              {tabs.map((tab) => (
+                <NavLink key={tab.to} to={tab.to} className={navLinkClass} onClick={() => setMenuOpen(false)}>
+                  {tab.label}
+                </NavLink>
+              ))}
+            </nav>
+            <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3 text-sm text-slate-600 dark:border-slate-700 dark:text-slate-300">
+              <span>{usuario?.nombre}</span>
+              <button
+                onClick={() => logout()}
+                className="rounded-lg px-3 py-1.5 font-medium text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700"
+              >
+                Salir
+              </button>
+            </div>
+          </div>
+        )}
       </header>
       <main className="mx-auto max-w-6xl px-4 py-6">
         <Outlet />

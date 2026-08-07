@@ -46,7 +46,7 @@ export function DashboardPage() {
   return (
     <Fragment>
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-semibold text-slate-800 dark:text-slate-100">Dashboard</h1>
         {tab === "general" && (
           <button
@@ -58,12 +58,12 @@ export function DashboardPage() {
         )}
       </div>
 
-      <div className="flex w-fit gap-1 rounded-lg bg-slate-100 p-1 text-sm dark:bg-slate-800">
+      <div className="flex w-fit max-w-full gap-1 overflow-x-auto rounded-lg bg-slate-100 p-1 text-sm dark:bg-slate-800">
         {TABS.map((t) => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
-            className={`rounded-md px-3 py-1.5 ${
+            className={`whitespace-nowrap rounded-md px-3 py-1.5 ${
               tab === t.id
                 ? "bg-white font-medium shadow dark:bg-slate-700 dark:text-slate-100"
                 : "text-slate-500 dark:text-slate-400"

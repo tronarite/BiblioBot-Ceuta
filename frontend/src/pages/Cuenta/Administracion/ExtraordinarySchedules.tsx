@@ -41,11 +41,11 @@ export function ExtraordinarySchedulesAdmin() {
     <div className="space-y-6">
       <div className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-800">
         <h2 className="mb-3 font-medium text-slate-800 dark:text-slate-100">Nuevo horario extraordinario</h2>
-        <form onSubmit={crear} className="grid max-w-lg grid-cols-2 gap-3">
+        <form onSubmit={crear} className="grid max-w-lg grid-cols-1 gap-3 sm:grid-cols-2">
           <select
             value={bibliotecaId}
             onChange={(e) => setBibliotecaId(e.target.value)}
-            className={`col-span-2 ${inputClass}`}
+            className={`sm:col-span-2 ${inputClass}`}
           >
             {bibliotecas.map((b) => (
               <option key={b.id} value={b.id}>
@@ -66,9 +66,9 @@ export function ExtraordinarySchedulesAdmin() {
             onChange={(e) => setDescripcion(e.target.value)}
             placeholder="Descripción"
             required
-            className={`col-span-2 ${inputClass}`}
+            className={`sm:col-span-2 ${inputClass}`}
           />
-          <button className="col-span-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
+          <button className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 sm:col-span-2">
             Añadir
           </button>
         </form>
@@ -81,7 +81,7 @@ export function ExtraordinarySchedulesAdmin() {
         ) : (
           <div className="divide-y divide-slate-100 dark:divide-slate-700">
             {horarios.map((h) => (
-              <div key={h.id} className="flex items-center justify-between py-2 text-sm">
+              <div key={h.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
                 <div>
                   <p className="font-medium text-slate-800 dark:text-slate-100">
                     {h.biblioteca.nombre} · {new Date(h.fecha).toLocaleDateString("es-ES")}
