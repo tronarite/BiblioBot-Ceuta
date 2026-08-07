@@ -87,13 +87,15 @@ export function ScheduleWizard({
         { label: "Asiento alternativo", value: alternativoCodigo || null },
       ]}
     >
-      {error && <p className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+      {error && (
+        <p className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-900/20 dark:text-red-300">{error}</p>
+      )}
 
       {step === 1 && (
         <div className="space-y-6">
           {bibliotecas.map((b) => (
             <div key={b.id}>
-              <h3 className="mb-2 font-medium text-slate-700">{b.nombre}</h3>
+              <h3 className="mb-2 font-medium text-slate-700 dark:text-slate-200">{b.nombre}</h3>
               <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
                 {b.plantas.map((p) => (
                   <button
@@ -104,8 +106,10 @@ export function ScheduleWizard({
                       setTurnos([]);
                       setStep(2);
                     }}
-                    className={`rounded-xl border p-3 text-left text-sm hover:border-brand-400 ${
-                      planta?.id === p.id ? "border-brand-500 bg-brand-50" : "border-slate-200"
+                    className={`rounded-xl border p-3 text-left text-sm hover:border-brand-400 dark:text-slate-100 dark:hover:border-brand-500 ${
+                      planta?.id === p.id
+                        ? "border-brand-500 bg-brand-50 dark:bg-brand-900/30"
+                        : "border-slate-200 dark:border-slate-700 dark:bg-slate-800"
                     }`}
                   >
                     {p.nombre}
@@ -120,7 +124,10 @@ export function ScheduleWizard({
       {step === 2 && planta && (
         <div className="max-w-sm space-y-3">
           {(["manana", "tarde"] as const).map((t) => (
-            <label key={t} className="flex items-center gap-3 rounded-xl border border-slate-200 p-3 text-sm">
+            <label
+              key={t}
+              className="flex items-center gap-3 rounded-xl border border-slate-200 p-3 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+            >
               <input
                 type="checkbox"
                 checked={turnos.includes(t)}
@@ -148,7 +155,10 @@ export function ScheduleWizard({
               ["indefinida", "Indefinida, hasta cancelación manual"],
             ] as const
           ).map(([value, label]) => (
-            <label key={value} className="flex items-center gap-3 rounded-xl border border-slate-200 p-3 text-sm">
+            <label
+              key={value}
+              className="flex items-center gap-3 rounded-xl border border-slate-200 p-3 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+            >
               <input type="radio" checked={tipo === value} onChange={() => setTipo(value)} />
               {label}
             </label>
@@ -159,7 +169,7 @@ export function ScheduleWizard({
               min={1}
               value={valorNumero}
               onChange={(e) => setValorNumero(Number(e.target.value))}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
             />
           )}
           {tipo === "hasta_fecha" && (
@@ -167,7 +177,7 @@ export function ScheduleWizard({
               type="date"
               value={valorFecha}
               onChange={(e) => setValorFecha(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
             />
           )}
           <button onClick={() => setStep(4)} className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white">
@@ -187,7 +197,9 @@ export function ScheduleWizard({
                   key={label}
                   title={motivos[0] ?? undefined}
                   className={`flex items-center gap-2 rounded-xl border p-3 text-sm ${
-                    invalido ? "cursor-not-allowed border-slate-100 text-slate-300" : "border-slate-200"
+                    invalido
+                      ? "cursor-not-allowed border-slate-100 text-slate-300 dark:border-slate-800 dark:text-slate-600"
+                      : "border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                   }`}
                 >
                   <input type="checkbox" disabled={invalido} checked={dias.includes(i)} onChange={() => toggleDia(i)} />
@@ -209,7 +221,7 @@ export function ScheduleWizard({
       {step === 5 && (
         <div className="grid max-w-3xl gap-6 md:grid-cols-2">
           <div>
-            <p className="mb-2 text-sm text-slate-500">
+            <p className="mb-2 text-sm text-slate-500 dark:text-slate-400">
               Como las programaciones se preparan con antelación, el turno elegido puede que todavía no tenga hueco abierto en
               PatronBase para ver el mapa de asientos en vivo. Consulta el plano de la sala y escribe el número del asiento
               que quieras (la fila la determina la sala, no hace falta indicarla).
@@ -219,12 +231,12 @@ export function ScheduleWizard({
                 <img
                   src={plano}
                   alt={`Plano de ${planta?.nombre}`}
-                  className="w-full cursor-zoom-in rounded-xl border border-slate-200"
+                  className="w-full cursor-zoom-in rounded-xl border border-slate-200 dark:border-slate-700"
                 />
-                <p className="mt-1 text-xs text-brand-600">Toca la imagen para verla más grande</p>
+                <p className="mt-1 text-xs text-brand-600 dark:text-brand-400">Toca la imagen para verla más grande</p>
               </button>
             ) : (
-              <div className="flex h-48 items-center justify-center rounded-xl border border-dashed border-slate-300 text-sm text-slate-400">
+              <div className="flex h-48 items-center justify-center rounded-xl border border-dashed border-slate-300 text-sm text-slate-400 dark:border-slate-600 dark:text-slate-500">
                 No hay plano disponible para esta sala todavía
               </div>
             )}
@@ -232,25 +244,29 @@ export function ScheduleWizard({
 
           <div className="space-y-4">
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Nº de asiento preferido (Opción 1)</label>
+              <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                Nº de asiento preferido (Opción 1)
+              </label>
               <input
                 value={preferidoCodigo}
                 onChange={(e) => setPreferidoCodigo(e.target.value.replace(/[^\d]/g, ""))}
                 inputMode="numeric"
                 placeholder="Ej. 24"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Nº de asiento alternativo (Opción 2, opcional)</label>
+              <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                Nº de asiento alternativo (Opción 2, opcional)
+              </label>
               <input
                 value={alternativoCodigo}
                 onChange={(e) => setAlternativoCodigo(e.target.value.replace(/[^\d]/g, ""))}
                 inputMode="numeric"
                 placeholder="Ej. 25"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
               />
-              <p className="mt-1 text-xs text-slate-400">
+              <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
                 Se usa automáticamente si la Opción 1 no está libre en el momento de reservar.
               </p>
             </div>
@@ -267,21 +283,23 @@ export function ScheduleWizard({
 
       {step === 6 && (
         <div className="max-w-md space-y-4">
-          <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm space-y-1">
+          <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm space-y-1 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
             <p>
-              <span className="text-slate-500">Biblioteca / planta:</span> {biblioteca?.nombre} · {planta?.nombre}
+              <span className="text-slate-500 dark:text-slate-400">Biblioteca / planta:</span> {biblioteca?.nombre} ·{" "}
+              {planta?.nombre}
             </p>
             <p>
-              <span className="text-slate-500">Turnos:</span> {turnos.map((t) => (t === "manana" ? "Mañana" : "Tarde")).join(" y ")}
+              <span className="text-slate-500 dark:text-slate-400">Turnos:</span>{" "}
+              {turnos.map((t) => (t === "manana" ? "Mañana" : "Tarde")).join(" y ")}
             </p>
             <p>
-              <span className="text-slate-500">Días:</span> {dias.map((d) => DIAS[d]).join(", ")}
+              <span className="text-slate-500 dark:text-slate-400">Días:</span> {dias.map((d) => DIAS[d]).join(", ")}
             </p>
             <p>
-              <span className="text-slate-500">Preferido:</span> {preferidoCodigo}
+              <span className="text-slate-500 dark:text-slate-400">Preferido:</span> {preferidoCodigo}
             </p>
             <p>
-              <span className="text-slate-500">Alternativo:</span> {alternativoCodigo || "—"}
+              <span className="text-slate-500 dark:text-slate-400">Alternativo:</span> {alternativoCodigo || "—"}
             </p>
           </div>
           <button

@@ -95,13 +95,15 @@ export function BookingWizard({
         { label: "Asiento", value: seat?.label ?? null, onEdit: seat ? () => setStep(3) : undefined },
       ]}
     >
-      {error && <p className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+      {error && (
+        <p className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-900/20 dark:text-red-300">{error}</p>
+      )}
 
       {step === 1 && (
         <div className="space-y-6">
           {bibliotecas.map((b) => (
             <div key={b.id}>
-              <h3 className="mb-2 font-medium text-slate-700">{b.nombre}</h3>
+              <h3 className="mb-2 font-medium text-slate-700 dark:text-slate-200">{b.nombre}</h3>
               <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
                 {b.plantas.flatMap((p) =>
                   p.turnos.map((t) => {
@@ -121,17 +123,21 @@ export function BookingWizard({
                         }}
                         className={`rounded-xl border p-3 text-left text-sm transition ${
                           deshabilitado
-                            ? "cursor-not-allowed border-slate-100 bg-slate-50 text-slate-400"
-                            : `hover:border-brand-400 ${turno?.id === t.id ? "border-brand-500 bg-brand-50" : "border-slate-200"}`
+                            ? "cursor-not-allowed border-slate-100 bg-slate-50 text-slate-400 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-500"
+                            : `hover:border-brand-400 dark:border-slate-700 dark:hover:border-brand-500 ${
+                                turno?.id === t.id
+                                  ? "border-brand-500 bg-brand-50 dark:bg-brand-900/30"
+                                  : "border-slate-200 dark:bg-slate-800"
+                              }`
                         }`}
                       >
-                        <p className="font-medium">
+                        <p className="font-medium dark:text-slate-100">
                           {p.nombre} · {t.tipo === "manana" ? "Mañana" : "Tarde"}
                         </p>
                         {deshabilitado ? (
                           <p className="mt-1 text-xs">{estado?.mensaje ?? "No disponible por ahora"}</p>
                         ) : (
-                          <p className="mt-1 text-xs text-slate-500">{t.horario}</p>
+                          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{t.horario}</p>
                         )}
                       </button>
                     );
@@ -145,7 +151,7 @@ export function BookingWizard({
 
       {step === 2 && (
         <div>
-          {loading && <p className="text-sm text-slate-500">Consultando días disponibles…</p>}
+          {loading && <p className="text-sm text-slate-500 dark:text-slate-400">Consultando días disponibles…</p>}
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
             {performances.map((p) => (
               <button
@@ -157,7 +163,9 @@ export function BookingWizard({
                   setStep(3);
                 }}
                 className={`rounded-xl border p-3 text-left text-sm transition ${
-                  p.available ? "border-slate-200 hover:border-brand-400" : "cursor-not-allowed border-slate-100 text-slate-300"
+                  p.available
+                    ? "border-slate-200 hover:border-brand-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-brand-500"
+                    : "cursor-not-allowed border-slate-100 text-slate-300 dark:border-slate-800 dark:text-slate-600"
                 }`}
               >
                 <p className="font-medium">{p.label.split("No estará")[0]}</p>
@@ -170,10 +178,13 @@ export function BookingWizard({
 
       {step === 3 && (
         <div>
-          {loading && <p className="mb-3 text-sm text-slate-500">Cargando mapa de asientos…</p>}
+          {loading && <p className="mb-3 text-sm text-slate-500 dark:text-slate-400">Cargando mapa de asientos…</p>}
           <SeatMapViewer seats={seats} mode="single" selected={seat} onSelect={(s) => setSeat(s)} />
           {seat && (
-            <button onClick={() => setStep(4)} className="mt-6 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
+            <button
+              onClick={() => setStep(4)}
+              className="mt-6 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
+            >
               Continuar
             </button>
           )}
@@ -182,18 +193,18 @@ export function BookingWizard({
 
       {step === 4 && (
         <div className="max-w-md space-y-4">
-          <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm">
+          <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
             <p>
-              <span className="text-slate-500">Biblioteca:</span> {biblioteca?.nombre}
+              <span className="text-slate-500 dark:text-slate-400">Biblioteca:</span> {biblioteca?.nombre}
             </p>
             <p>
-              <span className="text-slate-500">Planta / turno:</span> {planta?.nombre} · {turno?.tipo}
+              <span className="text-slate-500 dark:text-slate-400">Planta / turno:</span> {planta?.nombre} · {turno?.tipo}
             </p>
             <p>
-              <span className="text-slate-500">Día:</span> {perf?.label.split("No estará")[0]}
+              <span className="text-slate-500 dark:text-slate-400">Día:</span> {perf?.label.split("No estará")[0]}
             </p>
             <p>
-              <span className="text-slate-500">Asiento:</span> {seat?.label}
+              <span className="text-slate-500 dark:text-slate-400">Asiento:</span> {seat?.label}
             </p>
           </div>
           <button

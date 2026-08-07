@@ -18,7 +18,7 @@ export function SeatMapViewer({ seats, mode, selected, selectedAlternate, pickin
     if (mode === "double" && seat.seatId === selectedAlternate?.seatId && seat.rowId === selectedAlternate?.rowId) {
       return "bg-brand-300";
     }
-    if (seat.state !== "available") return "bg-slate-800 cursor-not-allowed";
+    if (seat.state !== "available") return "bg-slate-800 dark:bg-slate-950 cursor-not-allowed";
     return "bg-emerald-500 hover:bg-emerald-600 cursor-pointer";
   }
 
@@ -26,7 +26,7 @@ export function SeatMapViewer({ seats, mode, selected, selectedAlternate, pickin
 
   return (
     <div>
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(1.5rem,1fr))] gap-1 rounded-xl bg-slate-100 p-4">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(1.5rem,1fr))] gap-1 rounded-xl bg-slate-100 p-4 dark:bg-slate-700">
         {seats.map((seat) => (
           <button
             key={`${seat.rowId}-${seat.seatId}`}
@@ -40,19 +40,19 @@ export function SeatMapViewer({ seats, mode, selected, selectedAlternate, pickin
           />
         ))}
       </div>
-      <div className="mt-3 flex min-h-[1.5rem] items-center gap-2 text-sm text-slate-600">
+      <div className="mt-3 flex min-h-[1.5rem] items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
         {activo ? (
           <>
             <span className="font-medium">{activo.label}</span>
-            <span className="text-slate-400">·</span>
+            <span className="text-slate-400 dark:text-slate-500">·</span>
             <span>{activo.state === "available" ? "Libre" : "Ocupado"}</span>
           </>
         ) : (
-          <span className="text-slate-400">Pasa el ratón sobre un asiento para ver su información</span>
+          <span className="text-slate-400 dark:text-slate-500">Pasa el ratón sobre un asiento para ver su información</span>
         )}
       </div>
       {mode === "double" && (
-        <p className="mt-2 text-xs text-slate-500">
+        <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
           {pickingAlternate ? "Selecciona ahora la Opción 2 (alternativa)." : "Selecciona la Opción 1 (preferida)."}
         </p>
       )}

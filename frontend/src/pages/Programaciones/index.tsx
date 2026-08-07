@@ -36,7 +36,7 @@ export function ProgramacionesPage() {
     <Fragment>
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-slate-800">Programaciones</h1>
+        <h1 className="text-xl font-semibold text-slate-800 dark:text-slate-100">Programaciones</h1>
         <button
           onClick={() => setWizardOpen(true)}
           className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
@@ -46,7 +46,7 @@ export function ProgramacionesPage() {
       </div>
 
       {programaciones.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-400">
+        <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-400 dark:border-slate-600 dark:text-slate-500">
           No tienes programaciones. Crea la primera para que BiblioBot reserve tu puesto automáticamente.
         </div>
       ) : (

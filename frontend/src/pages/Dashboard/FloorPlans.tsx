@@ -12,7 +12,7 @@ export function FloorPlans() {
 
   return (
     <div>
-      <p className="mb-4 text-sm text-slate-500">
+      <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
         Planos de BP "Adolfo Suárez" con la numeración de fila y asiento de cada sala. Toca una imagen para verla más
         grande.
       </p>
@@ -22,16 +22,18 @@ export function FloorPlans() {
             key={p.planta}
             type="button"
             onClick={() => setAmpliado(p)}
-            className="group overflow-hidden rounded-xl border border-slate-200 bg-white text-left"
+            className="group overflow-hidden rounded-xl border border-slate-200 bg-white text-left dark:border-slate-700 dark:bg-slate-800"
           >
-            <div className="overflow-hidden bg-slate-50">
+            <div className="overflow-hidden bg-slate-50 dark:bg-slate-900">
               <img
                 src={p.src}
                 alt={`Plano de ${p.planta}`}
                 className="aspect-[3/2] w-full cursor-zoom-in object-cover transition group-hover:scale-105"
               />
             </div>
-            <p className="px-3 py-2 text-sm font-medium text-slate-700">BP "Adolfo Suárez" · {p.planta}</p>
+            <p className="px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-200">
+              BP "Adolfo Suárez" · {p.planta}
+            </p>
           </button>
         ))}
       </div>

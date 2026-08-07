@@ -47,7 +47,7 @@ export function DashboardPage() {
     <Fragment>
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-slate-800">Dashboard</h1>
+        <h1 className="text-xl font-semibold text-slate-800 dark:text-slate-100">Dashboard</h1>
         {tab === "general" && (
           <button
             onClick={() => setWizardOpen(true)}
@@ -58,12 +58,16 @@ export function DashboardPage() {
         )}
       </div>
 
-      <div className="flex w-fit gap-1 rounded-lg bg-slate-100 p-1 text-sm">
+      <div className="flex w-fit gap-1 rounded-lg bg-slate-100 p-1 text-sm dark:bg-slate-800">
         {TABS.map((t) => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
-            className={`rounded-md px-3 py-1.5 ${tab === t.id ? "bg-white font-medium shadow" : "text-slate-500"}`}
+            className={`rounded-md px-3 py-1.5 ${
+              tab === t.id
+                ? "bg-white font-medium shadow dark:bg-slate-700 dark:text-slate-100"
+                : "text-slate-500 dark:text-slate-400"
+            }`}
           >
             {t.label}
           </button>
@@ -72,14 +76,20 @@ export function DashboardPage() {
 
       {tab === "general" && (
         <div className="space-y-8">
-          {mensaje && <div className="rounded-xl bg-brand-50 p-4 text-sm text-brand-800">{mensaje}</div>}
+          {mensaje && (
+            <div className="rounded-xl bg-brand-50 p-4 text-sm text-brand-800 dark:bg-brand-900/30 dark:text-brand-200">
+              {mensaje}
+            </div>
+          )}
 
           <ExtraordinaryBanner horarios={horarios} />
 
           <div>
-            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">Ocupación de las bibliotecas</h2>
+            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+              Ocupación de las bibliotecas
+            </h2>
             {disponibilidad === null ? (
-              <p className="text-sm text-slate-400">Consultando disponibilidad en PatronBase…</p>
+              <p className="text-sm text-slate-400 dark:text-slate-500">Consultando disponibilidad en PatronBase…</p>
             ) : (
               <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                 {disponibilidad.map((d) => (

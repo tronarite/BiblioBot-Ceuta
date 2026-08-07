@@ -13,9 +13,9 @@ export function FullScreenPanel({
   children: ReactNode;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex bg-slate-50">
+    <div className="fixed inset-0 z-50 flex bg-slate-50 dark:bg-slate-900">
       <div className="flex-1 overflow-y-auto p-8">
-        <h1 className="mb-6 text-xl font-semibold text-slate-800">{title}</h1>
+        <h1 className="mb-6 text-xl font-semibold text-slate-800 dark:text-slate-100">{title}</h1>
         {children}
       </div>
       <SummarySidebar steps={steps} onClose={onClose} />
