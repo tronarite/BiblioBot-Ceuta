@@ -38,15 +38,26 @@ export function extraerFilaAsiento(texto: string): { fila: string; asiento: stri
 /**
  * Compara un código de asiento guardado (que puede haberlo escrito el usuario a mano,
  * ej. al crear una programación para un turno que todavía no tiene mapa visible) contra
- * la etiqueta real de un asiento del mapa en vivo. Si ambos tienen fila+asiento se
- * comparan solo esos números (ignora el nombre de sala y mayúsculas); si no, cae a
- * comparación exacta de texto.
+ * un asiento real del mapa en vivo.
+ *
+ * Dentro de una misma sala/turno, todos los asientos comparten la misma fila (el número
+ * de fila en PatronBase es fijo por sala, no por posición física — verificado con
+ * reservas reales: fila 3 en Adolfo Suárez 3ª, fila 0 en El Morro Planta 0, fila 1 en
+ * Estación del Ferrocarril). Como una Programación ya fija la sala/turno, basta con que
+ * el usuario escriba solo el número de asiento.
  */
-export function coincideAsiento(codigoGuardado: string, labelReal: string): boolean {
-  const a = extraerFilaAsiento(codigoGuardado);
-  const b = extraerFilaAsiento(labelReal);
+export function coincideAsiento(codigoGuardado: string, seatReal: SeatInfo): boolean {
+  const codigo = codigoGuardado.trim();
+
+  if (/^\d+$/.test(codigo)) {
+    return seatReal.seatId === codigo;
+  }
+
+  const a = extraerFilaAsiento(codigo);
+  const b = extraerFilaAsiento(seatReal.label);
   if (a && b) return a.fila === b.fila && a.asiento === b.asiento;
-  return codigoGuardado.trim().toLowerCase() === labelReal.trim().toLowerCase();
+
+  return codigo.toLowerCase() === seatReal.label.trim().toLowerCase();
 }
 
 export type SeatMapResult = {

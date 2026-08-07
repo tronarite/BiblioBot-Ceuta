@@ -211,8 +211,8 @@ export function ScheduleWizard({
           <div>
             <p className="mb-2 text-sm text-slate-500">
               Como las programaciones se preparan con antelación, el turno elegido puede que todavía no tenga hueco abierto en
-              PatronBase para ver el mapa de asientos en vivo. Consulta el plano de la sala y escribe el número de fila y
-              asiento que quieras.
+              PatronBase para ver el mapa de asientos en vivo. Consulta el plano de la sala y escribe el número del asiento
+              que quieras (la fila la determina la sala, no hace falta indicarla).
             </p>
             {plano ? (
               <button type="button" onClick={() => setPlanoAmpliado(true)} className="block w-full">
@@ -232,20 +232,22 @@ export function ScheduleWizard({
 
           <div className="space-y-4">
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Asiento preferido (Opción 1)</label>
+              <label className="mb-1 block text-sm font-medium text-slate-700">Nº de asiento preferido (Opción 1)</label>
               <input
                 value={preferidoCodigo}
-                onChange={(e) => setPreferidoCodigo(e.target.value)}
-                placeholder="Ej. Fila 3 - Asiento 24"
+                onChange={(e) => setPreferidoCodigo(e.target.value.replace(/[^\d]/g, ""))}
+                inputMode="numeric"
+                placeholder="Ej. 24"
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Asiento alternativo (Opción 2, opcional)</label>
+              <label className="mb-1 block text-sm font-medium text-slate-700">Nº de asiento alternativo (Opción 2, opcional)</label>
               <input
                 value={alternativoCodigo}
-                onChange={(e) => setAlternativoCodigo(e.target.value)}
-                placeholder="Ej. Fila 3 - Asiento 25"
+                onChange={(e) => setAlternativoCodigo(e.target.value.replace(/[^\d]/g, ""))}
+                inputMode="numeric"
+                placeholder="Ej. 25"
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
               />
               <p className="mt-1 text-xs text-slate-400">

@@ -59,7 +59,7 @@ async function intentarTurno(
   );
 
   for (const codigo of candidatos) {
-    const asiento = seats.find((s) => coincideAsiento(codigo, s.label) && s.state === "available");
+    const asiento = seats.find((s) => coincideAsiento(codigo, s) && s.state === "available");
     if (!asiento) continue;
 
     const held = await holdSeat(session, turno.patronbaseProdId, objetivo.perfId, asiento);
