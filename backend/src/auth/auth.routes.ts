@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../db";
+import { env } from "../env";
 import { AUTH_COOKIE_NAME, hashPassword, signToken, verifyPassword } from "./auth.service";
 import { requireAuth } from "./auth.middleware";
 
@@ -9,7 +10,7 @@ export const authRouter = Router();
 const cookieOptions = {
   httpOnly: true,
   sameSite: "lax" as const,
-  secure: process.env.NODE_ENV === "production",
+  secure: env.cookieSecure,
   maxAge: 7 * 24 * 60 * 60 * 1000,
 };
 
