@@ -3,7 +3,8 @@ export type Rol = "admin" | "usuario";
 export type Usuario = {
   id: string;
   nombre: string;
-  email: string;
+  email: string | null;
+  username: string | null;
   rol: Rol;
   activo?: boolean;
 };
@@ -59,6 +60,8 @@ export type EstadoTurno = {
   turnoId: string;
   disponibleAhora: boolean;
   mensaje: string | null;
+  plazasLibresHoy: number | null;
+  pocasPlazasHoy: boolean;
 };
 
 export type SeatInfo = {
@@ -86,6 +89,7 @@ export type ReservaPatronBase = {
   horaSesion: string;
   asiento: string;
   estado: "en_curso" | "proxima";
+  enlacePatronBase: string;
 };
 
 export type ReservationsResponse = {
@@ -124,8 +128,7 @@ export type HorarioExtraordinario = {
   bibliotecaId: string;
   biblioteca: Biblioteca;
   fecha: string;
-  descripcion: string;
-  horario: string;
+  texto: string;
 };
 
 export type CuentaPatronBaseStatus = {

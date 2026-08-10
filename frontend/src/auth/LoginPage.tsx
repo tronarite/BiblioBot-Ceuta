@@ -7,6 +7,7 @@ export function LoginPage() {
   const [mode, setMode] = useState<"login" | "bootstrap">("login");
   const [nombre, setNombre] = useState("");
   const [email, setEmail] = useState("");
+  const [identificador, setIdentificador] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -21,7 +22,7 @@ export function LoginPage() {
       if (mode === "bootstrap") {
         await bootstrapAdmin(nombre, email, password);
       } else {
-        await login(email, password);
+        await login(identificador, password);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error desconocido");
@@ -39,19 +40,19 @@ export function LoginPage() {
         <h1 className="mb-1 text-2xl font-semibold text-brand-800 dark:text-brand-300">BiblioBot</h1>
         <p className="mb-6 text-sm text-slate-500 dark:text-slate-400">Bibliotecas Públicas de Ceuta</p>
 
-        <div className="mb-6 flex gap-1 rounded-lg bg-slate-100 p-1 text-sm dark:bg-slate-700">
-          <button
-            className={`flex-1 rounded-md py-1.5 ${
-              mode === "login"
-                ? "bg-white font-medium shadow dark:bg-slate-600 dark:text-slate-100"
-                : "text-slate-500 dark:text-slate-400"
-            }`}
-            onClick={() => setMode("login")}
-            type="button"
-          >
-            Iniciar sesión
-          </button>
-          {adminExists === false && (
+        {adminExists === false && (
+          <div className="mb-6 flex gap-1 rounded-lg bg-slate-100 p-1 text-sm dark:bg-slate-700">
+            <button
+              className={`flex-1 rounded-md py-1.5 ${
+                mode === "login"
+                  ? "bg-white font-medium shadow dark:bg-slate-600 dark:text-slate-100"
+                  : "text-slate-500 dark:text-slate-400"
+              }`}
+              onClick={() => setMode("login")}
+              type="button"
+            >
+              Iniciar sesión
+            </button>
             <button
               className={`flex-1 rounded-md py-1.5 ${
                 mode === "bootstrap"
@@ -63,8 +64,8 @@ export function LoginPage() {
             >
               Crear administrador
             </button>
-          )}
-        </div>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {mode === "bootstrap" && (
@@ -73,16 +74,29 @@ export function LoginPage() {
               <input className={inputClass} value={nombre} onChange={(e) => setNombre(e.target.value)} required />
             </div>
           )}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Email</label>
-            <input
-              type="email"
-              className={inputClass}
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </div>
+          {mode === "bootstrap" ? (
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Email</label>
+              <input
+                type="email"
+                className={inputClass}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
+          ) : (
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Email o usuario</label>
+              <input
+                type="text"
+                className={inputClass}
+                value={identificador}
+                onChange={(e) => setIdentificador(e.target.value)}
+                required
+              />
+            </div>
+          )}
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Contraseña</label>
             <input

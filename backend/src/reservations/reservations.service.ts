@@ -1,4 +1,5 @@
 import { prisma } from "../db";
+import { env } from "../env";
 import { logActivity } from "../activity/activity.service";
 import { getAuthenticatedSession } from "../patronbaseAccount/account.service";
 import {
@@ -25,6 +26,7 @@ export type ReservaPatronBase = {
   horaSesion: string;
   asiento: string;
   estado: "en_curso" | "proxima";
+  enlacePatronBase: string;
 };
 
 function normalizarTexto(texto: string): string {
@@ -152,6 +154,7 @@ export async function listReservations(usuarioId: string): Promise<{ enCurso: Re
         horaSesion: item.horaSesion,
         asiento: item.asiento,
         estado,
+        enlacePatronBase: `${env.patronbaseBaseUrl}/Patron/ViewSale?sale=${encodeURIComponent(compra.saleId)}`,
       });
     }
   }

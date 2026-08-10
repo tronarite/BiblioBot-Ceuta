@@ -44,8 +44,7 @@ adminRouter.get("/horarios-extraordinarios", async (_req, res) => {
 const horarioSchema = z.object({
   bibliotecaId: z.string(),
   fecha: z.string(),
-  descripcion: z.string().min(1),
-  horario: z.string().min(1),
+  texto: z.string().min(1),
 });
 
 adminRouter.post("/horarios-extraordinarios", requireAdmin, async (req, res) => {
@@ -73,30 +72,46 @@ adminRouter.delete("/horarios-extraordinarios/:id", requireAdmin, async (req, re
 // --- Gestión de cuentas BiblioBot --------------------------------------------
 adminRouter.get("/usuarios", requireAdmin, async (_req, res) => {
   const usuarios = await prisma.usuario.findMany({
-    select: { id: true, nombre: true, email: true, rol: true, activo: true, fechaCreacion: true },
+    select: { id: true, nombre: true, email: true, username: true, rol: true, activo: true, fechaCreacion: true },
     orderBy: { fechaCreacion: "desc" },
   });
   res.json(usuarios);
 });
 
-const crearUsuarioSchema = z.object({
-  nombre: z.string().min(1),
-  email: z.string().email(),
-  password: z.string().min(8),
-  rol: z.enum(["admin", "usuario"]).default("usuario"),
-});
+const crearUsuarioSchema = z
+  .object({
+    nombre: z.string().min(1),
+    usaCorreo: z.boolean(),
+    email: z.string().email().optional(),
+    username: z.string().min(3).optional(),
+    password: z.string().min(8),
+    rol: z.enum(["admin", "usuario"]).default("usuario"),
+  })
+  .refine((data) => (data.usaCorreo ? !!data.email : !!data.username), {
+    message: "Falta el email o el nombre de usuario",
+  });
 
 adminRouter.post("/usuarios", requireAdmin, async (req, res) => {
   const parsed = crearUsuarioSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Datos inválidos" });
-  const existente = await prisma.usuario.findUnique({ where: { email: parsed.data.email } });
-  if (existente) return res.status(409).json({ error: "Ya existe una cuenta con ese email" });
+  const { nombre, usaCorreo, email, username, password, rol } = parsed.data;
 
-  const passwordHash = await hashPassword(parsed.data.password);
-  const usuario = await prisma.usuario.create({
-    data: { nombre: parsed.data.nombre, email: parsed.data.email, passwordHash, rol: parsed.data.rol },
+  const existente = await prisma.usuario.findFirst({
+    where: usaCorreo ? { email } : { username },
   });
-  res.status(201).json({ id: usuario.id, nombre: usuario.nombre, email: usuario.email, rol: usuario.rol });
+  if (existente) return res.status(409).json({ error: "Ya existe una cuenta con ese email o nombre de usuario" });
+
+  const passwordHash = await hashPassword(password);
+  const usuario = await prisma.usuario.create({
+    data: {
+      nombre,
+      email: usaCorreo ? email : null,
+      username: usaCorreo ? null : username,
+      passwordHash,
+      rol,
+    },
+  });
+  res.status(201).json({ id: usuario.id, nombre: usuario.nombre, email: usuario.email, username: usuario.username, rol: usuario.rol });
 });
 
 const actualizarUsuarioSchema = z.object({
@@ -114,7 +129,7 @@ adminRouter.patch("/usuarios/:id", requireAdmin, async (req, res) => {
   if (passwordNueva) data.passwordHash = await hashPassword(passwordNueva);
 
   const usuario = await prisma.usuario.update({ where: { id: req.params.id }, data });
-  res.json({ id: usuario.id, nombre: usuario.nombre, email: usuario.email, rol: usuario.rol, activo: usuario.activo });
+  res.json({ id: usuario.id, nombre: usuario.nombre, email: usuario.email, username: usuario.username, rol: usuario.rol, activo: usuario.activo });
 });
 
 adminRouter.delete("/usuarios/:id", requireAdmin, async (req, res) => {

@@ -6,7 +6,7 @@ type AuthState = {
   usuario: Usuario | null;
   loading: boolean;
   adminExists: boolean | null;
-  login: (email: string, password: string) => Promise<void>;
+  login: (identificador: string, password: string) => Promise<void>;
   bootstrapAdmin: (nombre: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
@@ -45,8 +45,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refresh();
   }, [refresh]);
 
-  const login = useCallback(async (email: string, password: string) => {
-    const me = await api.post<Usuario>("/auth/login", { email, password });
+  const login = useCallback(async (identificador: string, password: string) => {
+    const me = await api.post<Usuario>("/auth/login", { identificador, password });
     setUsuario(me);
   }, []);
 

@@ -48,11 +48,11 @@ authRouter.post("/bootstrap-admin", async (req, res) => {
 
   const token = signToken({ sub: usuario.id, rol: "admin" });
   res.cookie(AUTH_COOKIE_NAME, token, cookieOptions);
-  res.status(201).json({ id: usuario.id, nombre: usuario.nombre, email: usuario.email, rol: usuario.rol });
+  res.status(201).json({ id: usuario.id, nombre: usuario.nombre, email: usuario.email, username: usuario.username, rol: usuario.rol });
 });
 
 const loginSchema = z.object({
-  email: z.string().email(),
+  identificador: z.string().min(1),
   password: z.string().min(1),
 });
 
@@ -61,9 +61,11 @@ authRouter.post("/login", async (req, res) => {
   if (!parsed.success) {
     return res.status(400).json({ error: "Datos inválidos" });
   }
-  const { email, password } = parsed.data;
+  const { identificador, password } = parsed.data;
 
-  const usuario = await prisma.usuario.findUnique({ where: { email } });
+  const usuario =
+    (await prisma.usuario.findUnique({ where: { email: identificador } })) ??
+    (await prisma.usuario.findUnique({ where: { username: identificador } }));
   if (!usuario || !usuario.activo) {
     return res.status(401).json({ error: "Credenciales incorrectas" });
   }
@@ -74,7 +76,7 @@ authRouter.post("/login", async (req, res) => {
 
   const token = signToken({ sub: usuario.id, rol: usuario.rol as "admin" | "usuario" });
   res.cookie(AUTH_COOKIE_NAME, token, cookieOptions);
-  res.json({ id: usuario.id, nombre: usuario.nombre, email: usuario.email, rol: usuario.rol });
+  res.json({ id: usuario.id, nombre: usuario.nombre, email: usuario.email, username: usuario.username, rol: usuario.rol });
 });
 
 authRouter.post("/logout", (_req, res) => {
@@ -87,5 +89,5 @@ authRouter.get("/me", requireAuth, async (req, res) => {
   if (!usuario) {
     return res.status(404).json({ error: "Usuario no encontrado" });
   }
-  res.json({ id: usuario.id, nombre: usuario.nombre, email: usuario.email, rol: usuario.rol });
+  res.json({ id: usuario.id, nombre: usuario.nombre, email: usuario.email, username: usuario.username, rol: usuario.rol });
 });

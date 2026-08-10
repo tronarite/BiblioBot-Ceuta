@@ -10,7 +10,7 @@ selfRouter.use(requireAuth);
 selfRouter.get("/", async (req, res) => {
   const usuario = await prisma.usuario.findUnique({ where: { id: req.user!.sub } });
   if (!usuario) return res.status(404).json({ error: "Usuario no encontrado" });
-  res.json({ id: usuario.id, nombre: usuario.nombre, email: usuario.email, rol: usuario.rol });
+  res.json({ id: usuario.id, nombre: usuario.nombre, email: usuario.email, username: usuario.username, rol: usuario.rol });
 });
 
 const updateSchema = z.object({
@@ -41,5 +41,5 @@ selfRouter.patch("/", async (req, res) => {
   }
 
   const actualizado = await prisma.usuario.update({ where: { id: usuario.id }, data });
-  res.json({ id: actualizado.id, nombre: actualizado.nombre, email: actualizado.email, rol: actualizado.rol });
+  res.json({ id: actualizado.id, nombre: actualizado.nombre, email: actualizado.email, username: actualizado.username, rol: actualizado.rol });
 });

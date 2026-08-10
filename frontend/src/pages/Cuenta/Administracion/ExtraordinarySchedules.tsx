@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../../../api/client";
+import { MiniMarkdown } from "../../../components/MiniMarkdown";
 import type { Biblioteca, HorarioExtraordinario } from "../../../api/types";
 
 const inputClass =
@@ -10,8 +11,7 @@ export function ExtraordinarySchedulesAdmin() {
   const [bibliotecas, setBibliotecas] = useState<Biblioteca[]>([]);
   const [bibliotecaId, setBibliotecaId] = useState("");
   const [fecha, setFecha] = useState("");
-  const [descripcion, setDescripcion] = useState("");
-  const [horario, setHorario] = useState("");
+  const [texto, setTexto] = useState("");
 
   function cargar() {
     api.get<HorarioExtraordinario[]>("/admin/horarios-extraordinarios").then(setHorarios);
@@ -25,10 +25,9 @@ export function ExtraordinarySchedulesAdmin() {
 
   async function crear(e: React.FormEvent) {
     e.preventDefault();
-    await api.post("/admin/horarios-extraordinarios", { bibliotecaId, fecha, descripcion, horario });
+    await api.post("/admin/horarios-extraordinarios", { bibliotecaId, fecha, texto });
     setFecha("");
-    setDescripcion("");
-    setHorario("");
+    setTexto("");
     cargar();
   }
 
@@ -53,21 +52,24 @@ export function ExtraordinarySchedulesAdmin() {
               </option>
             ))}
           </select>
-          <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} required className={inputClass} />
           <input
-            value={horario}
-            onChange={(e) => setHorario(e.target.value)}
-            placeholder="Horario (ej. 10:00-13:00)"
-            required
-            className={inputClass}
-          />
-          <input
-            value={descripcion}
-            onChange={(e) => setDescripcion(e.target.value)}
-            placeholder="Descripción"
+            type="date"
+            value={fecha}
+            onChange={(e) => setFecha(e.target.value)}
             required
             className={`sm:col-span-2 ${inputClass}`}
           />
+          <textarea
+            value={texto}
+            onChange={(e) => setTexto(e.target.value)}
+            placeholder={"Ej. Horario reducido: **10:00-13:00** por obras en la sala"}
+            required
+            rows={3}
+            className={`sm:col-span-2 ${inputClass}`}
+          />
+          <p className="text-xs text-slate-400 dark:text-slate-500 sm:col-span-2">
+            Admite Markdown básico: **negrita**, *cursiva* y listas con "- ".
+          </p>
           <button className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 sm:col-span-2">
             Añadir
           </button>
@@ -81,14 +83,12 @@ export function ExtraordinarySchedulesAdmin() {
         ) : (
           <div className="divide-y divide-slate-100 dark:divide-slate-700">
             {horarios.map((h) => (
-              <div key={h.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
+              <div key={h.id} className="flex flex-wrap items-start justify-between gap-2 py-2 text-sm">
                 <div>
                   <p className="font-medium text-slate-800 dark:text-slate-100">
                     {h.biblioteca.nombre} · {new Date(h.fecha).toLocaleDateString("es-ES")}
                   </p>
-                  <p className="text-slate-500 dark:text-slate-400">
-                    {h.descripcion} ({h.horario})
-                  </p>
+                  <MiniMarkdown texto={h.texto} className="text-slate-500 dark:text-slate-400" />
                 </div>
                 <button
                   onClick={() => eliminar(h.id)}

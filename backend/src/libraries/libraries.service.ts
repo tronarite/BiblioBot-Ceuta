@@ -95,17 +95,25 @@ export type EstadoTurno = {
   turnoId: string;
   disponibleAhora: boolean;
   mensaje: string | null;
+  plazasLibresHoy: number | null;
+  pocasPlazasHoy: boolean;
 };
+
+const UMBRAL_POCAS_PLAZAS = 5;
 
 /**
  * Para cada turno, indica si hay al menos un día reservable ahora mismo. Cuando no lo
  * hay (la sala está totalmente cerrada por el momento, ni siquiera "hoy" tiene hueco),
  * PatronBase no ofrece ningún día en el selector: solo un aviso de cuándo se abrirá.
  * Se usa para deshabilitar esas opciones en el asistente de reserva y mostrar ese aviso.
+ *
+ * También calcula, solo para el día de hoy, cuántas plazas quedan libres: si son pocas
+ * (<= UMBRAL_POCAS_PLAZAS) se marca pocasPlazasHoy para avisar al elegir turno.
  */
 export async function getEstadoTurnos(): Promise<EstadoTurno[]> {
   const bibliotecas = await listBibliotecas();
   const turnos = bibliotecas.flatMap((b) => b.plantas.flatMap((p) => p.turnos));
+  const hoy = new Date();
 
   // Peticiones públicas e independientes entre sí: una sesión por turno para poder
   // consultarlas todas en paralelo sin compartir estado de cookies innecesariamente.
@@ -115,13 +123,33 @@ export async function getEstadoTurnos(): Promise<EstadoTurno[]> {
         const session = new PatronBaseSession();
         const { options, noDisponibleTexto } = await getPerformances(session, turno.patronbaseProdId);
         const hayAlguno = options.some((o) => o.available);
+
+        let plazasLibresHoy: number | null = null;
+        const hoyOpt = options.find((o) => labelMatchesDate(o.label, hoy));
+        if (hoyOpt?.available) {
+          try {
+            const { seats } = await getSeatMap(session, turno.patronbaseProdId, hoyOpt.perfId);
+            plazasLibresHoy = seats.filter((s) => s.state === "available").length;
+          } catch {
+            plazasLibresHoy = null;
+          }
+        }
+
         return {
           turnoId: turno.id,
           disponibleAhora: hayAlguno,
           mensaje: hayAlguno ? null : (noDisponibleTexto ?? options.find((o) => o.availableFromText)?.availableFromText ?? null),
+          plazasLibresHoy,
+          pocasPlazasHoy: plazasLibresHoy !== null && plazasLibresHoy > 0 && plazasLibresHoy <= UMBRAL_POCAS_PLAZAS,
         };
       } catch {
-        return { turnoId: turno.id, disponibleAhora: false, mensaje: "No se pudo consultar la disponibilidad" };
+        return {
+          turnoId: turno.id,
+          disponibleAhora: false,
+          mensaje: "No se pudo consultar la disponibilidad",
+          plazasLibresHoy: null,
+          pocasPlazasHoy: false,
+        };
       }
     }),
   );

@@ -1,3 +1,4 @@
+import { parseAsiento } from "../../api/seatLabel";
 import type { ReservaPatronBase } from "../../api/types";
 
 const TURNO_ESTILO: Record<"manana" | "tarde", { label: string; classes: string }> = {
@@ -7,6 +8,7 @@ const TURNO_ESTILO: Record<"manana" | "tarde", { label: string; classes: string 
 
 function ReservaCard({ reserva }: { reserva: ReservaPatronBase }) {
   const turno = reserva.turnoTipo ? TURNO_ESTILO[reserva.turnoTipo] : null;
+  const asiento = reserva.asiento ? parseAsiento(reserva.asiento) : null;
 
   return (
     <div className="flex items-stretch overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
@@ -28,10 +30,34 @@ function ReservaCard({ reserva }: { reserva: ReservaPatronBase }) {
           </span>
         </div>
 
-        <div className="mt-3 inline-flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-1.5 text-sm dark:bg-slate-700/60">
-          <span className="text-slate-400 dark:text-slate-500">Asiento</span>
-          <span className="font-mono font-medium text-slate-700 dark:text-slate-200">{reserva.asiento || "—"}</span>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {asiento ? (
+            <>
+              <div className="inline-flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-1.5 text-sm dark:bg-slate-700/60">
+                <span className="text-slate-400 dark:text-slate-500">Tipo</span>
+                <span className="font-medium text-slate-700 dark:text-slate-200">{asiento.tipo}</span>
+              </div>
+              <div className="inline-flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-1.5 text-sm dark:bg-slate-700/60">
+                <span className="text-slate-400 dark:text-slate-500">Asiento</span>
+                <span className="font-mono font-medium text-slate-700 dark:text-slate-200">{asiento.numero}</span>
+              </div>
+            </>
+          ) : (
+            <div className="inline-flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-1.5 text-sm dark:bg-slate-700/60">
+              <span className="text-slate-400 dark:text-slate-500">Asiento</span>
+              <span className="font-mono font-medium text-slate-700 dark:text-slate-200">{reserva.asiento || "—"}</span>
+            </div>
+          )}
         </div>
+
+        <a
+          href={reserva.enlacePatronBase}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-brand-600 hover:underline dark:text-brand-400"
+        >
+          Ver en PatronBase →
+        </a>
       </div>
     </div>
   );

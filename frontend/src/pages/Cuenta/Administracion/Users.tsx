@@ -8,7 +8,9 @@ const inputClass =
 export function UsersAdmin() {
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [nombre, setNombre] = useState("");
+  const [usaCorreo, setUsaCorreo] = useState(true);
   const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [rol, setRol] = useState<"usuario" | "admin">("usuario");
   const [error, setError] = useState<string | null>(null);
@@ -23,9 +25,16 @@ export function UsersAdmin() {
     e.preventDefault();
     setError(null);
     try {
-      await api.post("/admin/usuarios", { nombre, email, password, rol });
+      await api.post("/admin/usuarios", {
+        nombre,
+        usaCorreo,
+        password,
+        rol,
+        ...(usaCorreo ? { email } : { username }),
+      });
       setNombre("");
       setEmail("");
+      setUsername("");
       setPassword("");
       setRol("usuario");
       cargar();
@@ -56,14 +65,35 @@ export function UsersAdmin() {
             required
             className={`sm:col-span-2 ${inputClass}`}
           />
-          <input
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            type="email"
-            placeholder="Email"
-            required
-            className={`sm:col-span-2 ${inputClass}`}
-          />
+          <div className="flex items-center gap-4 sm:col-span-2">
+            <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
+              <input type="radio" checked={usaCorreo} onChange={() => setUsaCorreo(true)} />
+              Usa email
+            </label>
+            <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
+              <input type="radio" checked={!usaCorreo} onChange={() => setUsaCorreo(false)} />
+              Sin email (nombre de usuario)
+            </label>
+          </div>
+          {usaCorreo ? (
+            <input
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              type="email"
+              placeholder="Email"
+              required
+              className={`sm:col-span-2 ${inputClass}`}
+            />
+          ) : (
+            <input
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="Nombre de usuario"
+              required
+              minLength={3}
+              className={`sm:col-span-2 ${inputClass}`}
+            />
+          )}
           <input
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -93,7 +123,7 @@ export function UsersAdmin() {
                 <p className="font-medium text-slate-800 dark:text-slate-100">
                   {u.nombre} <span className="ml-2 text-xs text-slate-400 dark:text-slate-500">{u.rol}</span>
                 </p>
-                <p className="text-slate-500 dark:text-slate-400">{u.email}</p>
+                <p className="text-slate-500 dark:text-slate-400">{u.email ?? u.username}</p>
               </div>
               <div className="flex items-center gap-2">
                 <span

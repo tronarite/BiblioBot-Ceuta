@@ -21,7 +21,8 @@ datasource db {
 model Usuario {
   id                  String    @id @default(cuid())
   nombre              String
-  email               String    @unique
+  email               String?   @unique
+  username            String?   @unique
   passwordHash        String
   rol                 String    @default("usuario")
   activo              Boolean   @default(true)
@@ -150,8 +151,7 @@ model HorarioExtraordinario {
   bibliotecaId  String
   biblioteca    Biblioteca  @relation(fields: [bibliotecaId], references: [id], onDelete: Cascade)
   fecha         DateTime
-  descripcion   String
-  horario       String
+  texto         String
   autorId       String
   autor         Usuario     @relation(fields: [autorId], references: [id])
   createdAt     DateTime    @default(now())

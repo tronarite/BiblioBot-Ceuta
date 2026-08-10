@@ -26,7 +26,7 @@ export function CuentaPage() {
     try {
       await api.patch("/account/me", {
         nombre,
-        email,
+        ...(email ? { email } : {}),
         ...(passwordNueva ? { passwordActual, passwordNueva } : {}),
       });
       setPasswordActual("");
@@ -55,13 +55,17 @@ export function CuentaPage() {
         <h2 className="mb-3 font-medium text-slate-800 dark:text-slate-100">Tus datos</h2>
         <form onSubmit={guardar} className="grid max-w-md gap-3">
           <input value={nombre} onChange={(e) => setNombre(e.target.value)} className={inputClass} placeholder="Nombre" />
-          <input
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            type="email"
-            className={inputClass}
-            placeholder="Email"
-          />
+          {usuario?.username ? (
+            <p className="text-sm text-slate-500 dark:text-slate-400">Nombre de usuario: {usuario.username}</p>
+          ) : (
+            <input
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              type="email"
+              className={inputClass}
+              placeholder="Email"
+            />
+          )}
           <hr className="my-1 border-slate-100 dark:border-slate-700" />
           <input
             value={passwordActual}
