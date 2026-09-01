@@ -23,24 +23,29 @@ function reglaPermite(biblioteca: Biblioteca, planta: Planta, turnoTipo: "manana
 
 export function ScheduleWizard({
   bibliotecas,
+  programacion: editando,
   onClose,
   onCreated,
 }: {
   bibliotecas: Biblioteca[];
+  programacion?: Programacion | null;
   onClose: () => void;
   onCreated: (p: Programacion) => void;
 }) {
-  const [step, setStep] = useState(1);
-  const [nombre, setNombre] = useState("");
-  const [biblioteca, setBiblioteca] = useState<Biblioteca | null>(null);
-  const [planta, setPlanta] = useState<Planta | null>(null);
-  const [turnos, setTurnos] = useState<Array<"manana" | "tarde">>([]);
-  const [tipo, setTipo] = useState<Programacion["tipo"]>("indefinida");
-  const [valorNumero, setValorNumero] = useState(10);
-  const [valorFecha, setValorFecha] = useState("");
-  const [dias, setDias] = useState<number[]>([]);
-  const [preferidoCodigo, setPreferidoCodigo] = useState("");
-  const [alternativoCodigo, setAlternativoCodigo] = useState("");
+  const bibliotecaInicial = editando ? (bibliotecas.find((b) => b.id === editando.bibliotecaId) ?? null) : null;
+  const plantaInicial = bibliotecaInicial ? (bibliotecaInicial.plantas.find((p) => p.id === editando!.plantaId) ?? null) : null;
+
+  const [step, setStep] = useState(editando ? 6 : 1);
+  const [nombre, setNombre] = useState(editando?.nombre ?? "");
+  const [biblioteca, setBiblioteca] = useState<Biblioteca | null>(bibliotecaInicial);
+  const [planta, setPlanta] = useState<Planta | null>(plantaInicial);
+  const [turnos, setTurnos] = useState<Array<"manana" | "tarde">>(editando ? JSON.parse(editando.turnos) : []);
+  const [tipo, setTipo] = useState<Programacion["tipo"]>(editando?.tipo ?? "indefinida");
+  const [valorNumero, setValorNumero] = useState(editando?.valorTipoNumero ?? 10);
+  const [valorFecha, setValorFecha] = useState(editando?.valorTipoFecha ? editando.valorTipoFecha.slice(0, 10) : "");
+  const [dias, setDias] = useState<number[]>(editando ? JSON.parse(editando.diasSemana) : []);
+  const [preferidoCodigo, setPreferidoCodigo] = useState(editando?.asientoPreferidoCodigo ?? "");
+  const [alternativoCodigo, setAlternativoCodigo] = useState(editando?.asientoAlternativoCodigo ?? "");
   const [planoAmpliado, setPlanoAmpliado] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -53,22 +58,25 @@ export function ScheduleWizard({
     if (!biblioteca || !planta || !preferidoCodigo.trim()) return;
     setLoading(true);
     setError(null);
+    const payload = {
+      nombre: nombre.trim() || undefined,
+      bibliotecaId: biblioteca.id,
+      plantaId: planta.id,
+      turnos,
+      tipo,
+      valorTipoNumero: tipo === "n_reservas" ? valorNumero : undefined,
+      valorTipoFecha: tipo === "hasta_fecha" ? valorFecha : undefined,
+      diasSemana: dias,
+      asientoPreferidoCodigo: preferidoCodigo.trim(),
+      asientoAlternativoCodigo: alternativoCodigo.trim() || undefined,
+    };
     try {
-      const programacion = await api.post<Programacion>("/schedules", {
-        nombre: nombre.trim() || undefined,
-        bibliotecaId: biblioteca.id,
-        plantaId: planta.id,
-        turnos,
-        tipo,
-        valorTipoNumero: tipo === "n_reservas" ? valorNumero : undefined,
-        valorTipoFecha: tipo === "hasta_fecha" ? valorFecha : undefined,
-        diasSemana: dias,
-        asientoPreferidoCodigo: preferidoCodigo.trim(),
-        asientoAlternativoCodigo: alternativoCodigo.trim() || undefined,
-      });
+      const programacion = editando
+        ? await api.patch<Programacion>(`/schedules/${editando.id}`, payload)
+        : await api.post<Programacion>("/schedules", payload);
       onCreated(programacion);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo crear la programación");
+      setError(err instanceof Error ? err.message : `No se pudo ${editando ? "guardar" : "crear"} la programación`);
     } finally {
       setLoading(false);
     }
@@ -78,7 +86,7 @@ export function ScheduleWizard({
 
   return (
     <FullScreenPanel
-      title="Nueva programación"
+      title={editando ? "Editar programación" : "Nueva programación"}
       onClose={onClose}
       steps={[
         { label: "Nombre", value: nombre.trim() || null, onEdit: () => setStep(1) },
@@ -330,7 +338,7 @@ export function ScheduleWizard({
             disabled={loading}
             className="w-full rounded-lg bg-brand-600 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
           >
-            {loading ? "Creando…" : "Crear programación"}
+            {loading ? (editando ? "Guardando…" : "Creando…") : editando ? "Guardar cambios" : "Crear programación"}
           </button>
         </div>
       )}

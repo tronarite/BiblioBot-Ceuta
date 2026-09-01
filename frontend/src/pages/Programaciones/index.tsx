@@ -7,7 +7,7 @@ import { ScheduleWizard } from "./ScheduleWizard";
 export function ProgramacionesPage() {
   const [programaciones, setProgramaciones] = useState<Programacion[]>([]);
   const [bibliotecas, setBibliotecas] = useState<Biblioteca[]>([]);
-  const [wizardOpen, setWizardOpen] = useState(false);
+  const [wizardTarget, setWizardTarget] = useState<"nueva" | Programacion | null>(null);
 
   async function cargar() {
     const [progs, libs] = await Promise.all([
@@ -43,7 +43,7 @@ export function ProgramacionesPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-semibold text-slate-800 dark:text-slate-100">Programaciones</h1>
         <button
-          onClick={() => setWizardOpen(true)}
+          onClick={() => setWizardTarget("nueva")}
           className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
         >
           Nueva programación
@@ -63,18 +63,20 @@ export function ProgramacionesPage() {
               onTogglePause={() => togglePause(p)}
               onDelete={() => eliminar(p)}
               onRename={(nombre) => renombrar(p, nombre)}
+              onEdit={() => setWizardTarget(p)}
             />
           ))}
         </div>
       )}
     </div>
 
-      {wizardOpen && (
+      {wizardTarget && (
         <ScheduleWizard
           bibliotecas={bibliotecas}
-          onClose={() => setWizardOpen(false)}
+          programacion={wizardTarget === "nueva" ? null : wizardTarget}
+          onClose={() => setWizardTarget(null)}
           onCreated={() => {
-            setWizardOpen(false);
+            setWizardTarget(null);
             cargar();
           }}
         />

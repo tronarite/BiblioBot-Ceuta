@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { requireAuth } from "../auth/auth.middleware";
 import { listActivity } from "../activity/activity.service";
-import { createSchedule, deleteSchedule, listSchedules, renombrarSchedule, setEstado } from "./schedules.service";
+import { createSchedule, deleteSchedule, getSchedule, listSchedules, setEstado, updateSchedule } from "./schedules.service";
 
 export const schedulesRouter = Router();
 schedulesRouter.use(requireAuth);
@@ -36,19 +36,35 @@ schedulesRouter.post("/", async (req, res) => {
   }
 });
 
-const estadoSchema = z
+const actualizarSchema = z
   .object({
     estado: z.enum(["activa", "pausada"]).optional(),
     nombre: z.string().trim().min(1).max(80).optional(),
+    bibliotecaId: z.string().optional(),
+    plantaId: z.string().optional(),
+    turnos: z.array(z.enum(["manana", "tarde"])).min(1).optional(),
+    tipo: z.enum(["n_reservas", "hasta_fecha", "indefinida"]).optional(),
+    valorTipoNumero: z.number().int().positive().optional(),
+    valorTipoFecha: z.string().optional(),
+    diasSemana: z.array(z.number().int().min(0).max(6)).min(1).optional(),
+    asientoPreferidoCodigo: z.string().min(1).optional(),
+    asientoAlternativoCodigo: z.string().optional(),
   })
-  .refine((data) => data.estado !== undefined || data.nombre !== undefined, { message: "Nada que actualizar" });
+  .refine((data) => Object.keys(data).length > 0, { message: "Nada que actualizar" });
 
 schedulesRouter.patch("/:id", async (req, res) => {
-  const parsed = estadoSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "Datos inválidos" });
-  if (parsed.data.estado !== undefined) await setEstado(req.params.id, req.user!.sub, parsed.data.estado);
-  if (parsed.data.nombre !== undefined) await renombrarSchedule(req.params.id, req.user!.sub, parsed.data.nombre);
-  res.status(204).send();
+  const parsed = actualizarSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Datos inválidos", detalles: parsed.error.flatten() });
+  const { estado, ...resto } = parsed.data;
+  try {
+    if (estado !== undefined) await setEstado(req.params.id, req.user!.sub, estado);
+    if (Object.keys(resto).length > 0) await updateSchedule(req.params.id, req.user!.sub, resto);
+    const actualizada = await getSchedule(req.params.id, req.user!.sub);
+    if (!actualizada) return res.status(404).json({ error: "Programación no encontrada" });
+    res.json(actualizada);
+  } catch (err) {
+    res.status(422).json({ error: (err as Error).message });
+  }
 });
 
 schedulesRouter.delete("/:id", async (req, res) => {

@@ -14,11 +14,13 @@ export function ScheduleCard({
   onTogglePause,
   onDelete,
   onRename,
+  onEdit,
 }: {
   programacion: Programacion;
   onTogglePause: () => void;
   onDelete: () => void;
   onRename: (nombre: string) => void;
+  onEdit: () => void;
 }) {
   const turnos = JSON.parse(programacion.turnos) as string[];
   const diasSemana = JSON.parse(programacion.diasSemana) as number[];
@@ -109,22 +111,28 @@ export function ScheduleCard({
         </p>
       )}
 
-      {programacion.estado !== "finalizada" && (
-        <div className="mt-4 flex gap-2 text-xs">
+      <div className="mt-4 flex gap-2 text-xs">
+        <button
+          onClick={onEdit}
+          className="rounded-lg border border-slate-200 px-3 py-1.5 font-medium hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700"
+        >
+          Editar
+        </button>
+        {programacion.estado !== "finalizada" && (
           <button
             onClick={onTogglePause}
             className="rounded-lg border border-slate-200 px-3 py-1.5 font-medium hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700"
           >
             {programacion.estado === "activa" ? "Pausar" : "Reanudar"}
           </button>
-          <button
-            onClick={onDelete}
-            className="rounded-lg border border-red-200 px-3 py-1.5 font-medium text-red-600 hover:bg-red-50 dark:border-red-900/60 dark:text-red-400 dark:hover:bg-red-900/20"
-          >
-            Eliminar
-          </button>
-        </div>
-      )}
+        )}
+        <button
+          onClick={onDelete}
+          className="rounded-lg border border-red-200 px-3 py-1.5 font-medium text-red-600 hover:bg-red-50 dark:border-red-900/60 dark:text-red-400 dark:hover:bg-red-900/20"
+        >
+          Eliminar
+        </button>
+      </div>
     </div>
   );
 }
