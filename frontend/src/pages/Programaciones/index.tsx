@@ -32,6 +32,11 @@ export function ProgramacionesPage() {
     cargar();
   }
 
+  async function renombrar(p: Programacion, nombre: string) {
+    await api.patch(`/schedules/${p.id}`, { nombre });
+    cargar();
+  }
+
   return (
     <Fragment>
     <div className="space-y-6">
@@ -52,7 +57,13 @@ export function ProgramacionesPage() {
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {programaciones.map((p) => (
-            <ScheduleCard key={p.id} programacion={p} onTogglePause={() => togglePause(p)} onDelete={() => eliminar(p)} />
+            <ScheduleCard
+              key={p.id}
+              programacion={p}
+              onTogglePause={() => togglePause(p)}
+              onDelete={() => eliminar(p)}
+              onRename={(nombre) => renombrar(p, nombre)}
+            />
           ))}
         </div>
       )}

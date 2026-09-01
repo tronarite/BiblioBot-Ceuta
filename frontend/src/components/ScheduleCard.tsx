@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { Programacion } from "../api/types";
 
 const DIAS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
@@ -12,22 +13,61 @@ export function ScheduleCard({
   programacion,
   onTogglePause,
   onDelete,
+  onRename,
 }: {
   programacion: Programacion;
   onTogglePause: () => void;
   onDelete: () => void;
+  onRename: (nombre: string) => void;
 }) {
   const turnos = JSON.parse(programacion.turnos) as string[];
   const diasSemana = JSON.parse(programacion.diasSemana) as number[];
+  const nombreMostrado = programacion.nombre || `${programacion.biblioteca.nombre} · ${programacion.planta.nombre}`;
+
+  const [editando, setEditando] = useState(false);
+  const [borrador, setBorrador] = useState(nombreMostrado);
+
+  function guardarNombre() {
+    const limpio = borrador.trim();
+    if (limpio && limpio !== programacion.nombre) onRename(limpio);
+    setEditando(false);
+  }
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
       <div className="flex items-start justify-between">
-        <div>
-          <p className="font-medium text-slate-800 dark:text-slate-100">
-            {programacion.biblioteca.nombre} · {programacion.planta.nombre}
-          </p>
+        <div className="min-w-0 flex-1">
+          {editando ? (
+            <input
+              autoFocus
+              value={borrador}
+              onChange={(e) => setBorrador(e.target.value)}
+              onBlur={guardarNombre}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") guardarNombre();
+                if (e.key === "Escape") {
+                  setBorrador(nombreMostrado);
+                  setEditando(false);
+                }
+              }}
+              maxLength={80}
+              className="w-full rounded-md border border-brand-300 bg-white px-2 py-0.5 text-sm font-medium text-slate-800 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-brand-600 dark:bg-slate-700 dark:text-slate-100"
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                setBorrador(nombreMostrado);
+                setEditando(true);
+              }}
+              className="truncate text-left font-medium text-slate-800 hover:underline dark:text-slate-100"
+              title="Cambiar nombre"
+            >
+              {nombreMostrado}
+            </button>
+          )}
           <p className="text-sm text-slate-500 dark:text-slate-400">
+            {programacion.biblioteca.nombre} · {programacion.planta.nombre} ·{" "}
             {turnos.map((t) => (t === "manana" ? "Mañana" : "Tarde")).join(" y ")}
           </p>
         </div>

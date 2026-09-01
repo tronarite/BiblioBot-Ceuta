@@ -3,6 +3,7 @@ import { diaTurnoPermitido } from "./rules";
 
 type CrearProgramacionInput = {
   usuarioId: string;
+  nombre?: string;
   bibliotecaId: string;
   plantaId: string;
   turnos: Array<"manana" | "tarde">;
@@ -53,6 +54,7 @@ export async function createSchedule(input: CrearProgramacionInput) {
   return prisma.programacion.create({
     data: {
       usuarioId: input.usuarioId,
+      nombre: input.nombre?.trim() || `${biblioteca.nombre} · ${planta.nombre}`,
       bibliotecaId: input.bibliotecaId,
       plantaId: input.plantaId,
       turnos: JSON.stringify(input.turnos),
@@ -70,6 +72,10 @@ export async function createSchedule(input: CrearProgramacionInput) {
 
 export async function setEstado(id: string, usuarioId: string, estado: "activa" | "pausada") {
   return prisma.programacion.updateMany({ where: { id, usuarioId }, data: { estado } });
+}
+
+export async function renombrarSchedule(id: string, usuarioId: string, nombre: string) {
+  return prisma.programacion.updateMany({ where: { id, usuarioId }, data: { nombre: nombre.trim() } });
 }
 
 export async function deleteSchedule(id: string, usuarioId: string) {

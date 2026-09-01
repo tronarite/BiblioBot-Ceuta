@@ -99,6 +99,7 @@ export type ReservationsResponse = {
 
 export type Programacion = {
   id: string;
+  nombre: string | null;
   bibliotecaId: string;
   plantaId: string;
   turnos: string;

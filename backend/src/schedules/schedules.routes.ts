@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { requireAuth } from "../auth/auth.middleware";
 import { listActivity } from "../activity/activity.service";
-import { createSchedule, deleteSchedule, listSchedules, setEstado } from "./schedules.service";
+import { createSchedule, deleteSchedule, listSchedules, renombrarSchedule, setEstado } from "./schedules.service";
 
 export const schedulesRouter = Router();
 schedulesRouter.use(requireAuth);
@@ -13,6 +13,7 @@ schedulesRouter.get("/", async (req, res) => {
 });
 
 const crearSchema = z.object({
+  nombre: z.string().trim().min(1).max(80).optional(),
   bibliotecaId: z.string(),
   plantaId: z.string(),
   turnos: z.array(z.enum(["manana", "tarde"])).min(1),
@@ -35,12 +36,18 @@ schedulesRouter.post("/", async (req, res) => {
   }
 });
 
-const estadoSchema = z.object({ estado: z.enum(["activa", "pausada"]) });
+const estadoSchema = z
+  .object({
+    estado: z.enum(["activa", "pausada"]).optional(),
+    nombre: z.string().trim().min(1).max(80).optional(),
+  })
+  .refine((data) => data.estado !== undefined || data.nombre !== undefined, { message: "Nada que actualizar" });
 
 schedulesRouter.patch("/:id", async (req, res) => {
   const parsed = estadoSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Datos inválidos" });
-  await setEstado(req.params.id, req.user!.sub, parsed.data.estado);
+  if (parsed.data.estado !== undefined) await setEstado(req.params.id, req.user!.sub, parsed.data.estado);
+  if (parsed.data.nombre !== undefined) await renombrarSchedule(req.params.id, req.user!.sub, parsed.data.nombre);
   res.status(204).send();
 });
 

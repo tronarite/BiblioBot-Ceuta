@@ -104,6 +104,7 @@ model Reserva {
 
 model Programacion {
   id                          String    @id @default(cuid())
+  nombre                      String?
   usuarioId                   String
   usuario                     Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
   bibliotecaId                String

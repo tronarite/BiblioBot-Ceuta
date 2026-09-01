@@ -31,6 +31,7 @@ export function ScheduleWizard({
   onCreated: (p: Programacion) => void;
 }) {
   const [step, setStep] = useState(1);
+  const [nombre, setNombre] = useState("");
   const [biblioteca, setBiblioteca] = useState<Biblioteca | null>(null);
   const [planta, setPlanta] = useState<Planta | null>(null);
   const [turnos, setTurnos] = useState<Array<"manana" | "tarde">>([]);
@@ -54,6 +55,7 @@ export function ScheduleWizard({
     setError(null);
     try {
       const programacion = await api.post<Programacion>("/schedules", {
+        nombre: nombre.trim() || undefined,
         bibliotecaId: biblioteca.id,
         plantaId: planta.id,
         turnos,
@@ -79,6 +81,7 @@ export function ScheduleWizard({
       title="Nueva programación"
       onClose={onClose}
       steps={[
+        { label: "Nombre", value: nombre.trim() || null, onEdit: () => setStep(1) },
         { label: "Biblioteca y planta", value: planta ? `${biblioteca?.nombre} · ${planta.nombre}` : null, onEdit: () => setStep(1) },
         { label: "Turnos", value: turnos.length ? turnos.map((t) => (t === "manana" ? "Mañana" : "Tarde")).join(" y ") : null, onEdit: () => setStep(2) },
         { label: "Tipo", value: tipo, onEdit: () => setStep(3) },
@@ -93,6 +96,22 @@ export function ScheduleWizard({
 
       {step === 1 && (
         <div className="space-y-6">
+          <div className="max-w-sm">
+            <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+              Nombre de la programación (opcional)
+            </label>
+            <input
+              value={nombre}
+              onChange={(e) => setNombre(e.target.value)}
+              placeholder="Ej. Estudio por las tardes"
+              maxLength={80}
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+            />
+            <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
+              Te ayuda a diferenciar para qué sirve cada programación. Si lo dejas en blanco, se usará el nombre de la
+              biblioteca y la planta.
+            </p>
+          </div>
           {bibliotecas.map((b) => (
             <div key={b.id}>
               <h3 className="mb-2 font-medium text-slate-700 dark:text-slate-200">{b.nombre}</h3>
@@ -284,6 +303,10 @@ export function ScheduleWizard({
       {step === 6 && (
         <div className="max-w-md space-y-4">
           <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm space-y-1 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
+            <p>
+              <span className="text-slate-500 dark:text-slate-400">Nombre:</span>{" "}
+              {nombre.trim() || `${biblioteca?.nombre} · ${planta?.nombre}`}
+            </p>
             <p>
               <span className="text-slate-500 dark:text-slate-400">Biblioteca / planta:</span> {biblioteca?.nombre} ·{" "}
               {planta?.nombre}
