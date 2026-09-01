@@ -35,18 +35,22 @@ adminRouter.put("/dashboard-message", requireAdmin, async (req, res) => {
 adminRouter.get("/horarios-extraordinarios", async (_req, res) => {
   const horarios = await prisma.horarioExtraordinario.findMany({
     where: { fechaFin: { gte: new Date(new Date().toDateString()) } },
-    include: { bibliotecas: true },
+    include: { biblioteca: true },
     orderBy: { fechaInicio: "asc" },
   });
   res.json(horarios);
 });
 
+// Una alta puede cubrir varias bibliotecas a la vez, pero cada una con su propio texto
+// (los horarios extraordinarios no suelen coincidir entre sedes) — se guarda como un
+// registro independiente por biblioteca, todos con el mismo rango de fechas.
 const horarioSchema = z
   .object({
-    bibliotecaIds: z.array(z.string()).min(1, "Selecciona al menos una biblioteca"),
     fechaInicio: z.string(),
     fechaFin: z.string(),
-    texto: z.string().min(1),
+    entradas: z
+      .array(z.object({ bibliotecaId: z.string(), texto: z.string().min(1) }))
+      .min(1, "Selecciona al menos una biblioteca"),
   })
   .refine((data) => data.fechaFin >= data.fechaInicio, {
     message: "La fecha de fin no puede ser anterior a la de inicio",
@@ -56,23 +60,27 @@ const horarioSchema = z
 adminRouter.post("/horarios-extraordinarios", requireAdmin, async (req, res) => {
   const parsed = horarioSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Datos inválidos", detalles: parsed.error.flatten() });
-  const { bibliotecaIds, fechaInicio, fechaFin, texto } = parsed.data;
-  const horario = await prisma.horarioExtraordinario.create({
-    data: {
-      texto,
-      fechaInicio: new Date(fechaInicio),
-      fechaFin: new Date(fechaFin),
-      autorId: req.user!.sub,
-      bibliotecas: { connect: bibliotecaIds.map((id) => ({ id })) },
-    },
-    include: { bibliotecas: true },
-  });
-  res.status(201).json(horario);
+  const { fechaInicio, fechaFin, entradas } = parsed.data;
+  const horarios = await prisma.$transaction(
+    entradas.map((entrada) =>
+      prisma.horarioExtraordinario.create({
+        data: {
+          bibliotecaId: entrada.bibliotecaId,
+          texto: entrada.texto,
+          fechaInicio: new Date(fechaInicio),
+          fechaFin: new Date(fechaFin),
+          autorId: req.user!.sub,
+        },
+        include: { biblioteca: true },
+      }),
+    ),
+  );
+  res.status(201).json(horarios);
 });
 
 const horarioActualizarSchema = z
   .object({
-    bibliotecaIds: z.array(z.string()).min(1).optional(),
+    bibliotecaId: z.string().optional(),
     fechaInicio: z.string().optional(),
     fechaFin: z.string().optional(),
     texto: z.string().min(1).optional(),
@@ -82,16 +90,16 @@ const horarioActualizarSchema = z
 adminRouter.patch("/horarios-extraordinarios/:id", requireAdmin, async (req, res) => {
   const parsed = horarioActualizarSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Datos inválidos", detalles: parsed.error.flatten() });
-  const { bibliotecaIds, fechaInicio, fechaFin, texto } = parsed.data;
+  const { bibliotecaId, fechaInicio, fechaFin, texto } = parsed.data;
   const horario = await prisma.horarioExtraordinario.update({
     where: { id: req.params.id },
     data: {
+      bibliotecaId,
       texto,
       fechaInicio: fechaInicio ? new Date(fechaInicio) : undefined,
       fechaFin: fechaFin ? new Date(fechaFin) : undefined,
-      bibliotecas: bibliotecaIds ? { set: bibliotecaIds.map((id) => ({ id })) } : undefined,
     },
-    include: { bibliotecas: true },
+    include: { biblioteca: true },
   });
   res.json(horario);
 });

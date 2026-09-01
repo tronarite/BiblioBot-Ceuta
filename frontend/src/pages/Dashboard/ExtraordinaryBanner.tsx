@@ -17,8 +17,7 @@ export function ExtraordinaryBanner({ horarios }: { horarios: HorarioExtraordina
       <div className="space-y-2 text-sm text-amber-900 dark:text-amber-200">
         {horarios.map((h) => (
           <div key={h.id}>
-            <span className="font-medium">{h.bibliotecas.map((b) => b.nombre).join(", ")}</span> ·{" "}
-            {formatearRango(h.fechaInicio, h.fechaFin)}
+            <span className="font-medium">{h.biblioteca.nombre}</span> · {formatearRango(h.fechaInicio, h.fechaFin)}
             <MiniMarkdown texto={h.texto} />
           </div>
         ))}

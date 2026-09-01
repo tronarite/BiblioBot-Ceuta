@@ -16,9 +16,9 @@ export function ExtraordinarySchedulesAdmin() {
   const [horarios, setHorarios] = useState<HorarioExtraordinario[]>([]);
   const [bibliotecas, setBibliotecas] = useState<Biblioteca[]>([]);
   const [bibliotecaIds, setBibliotecaIds] = useState<string[]>([]);
+  const [textos, setTextos] = useState<Record<string, string>>({});
   const [fechaInicio, setFechaInicio] = useState("");
   const [fechaFin, setFechaFin] = useState("");
-  const [texto, setTexto] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   function cargar() {
@@ -39,17 +39,17 @@ export function ExtraordinarySchedulesAdmin() {
       setError("Selecciona al menos una biblioteca");
       return;
     }
+    const entradas = bibliotecaIds.map((bibliotecaId) => ({ bibliotecaId, texto: (textos[bibliotecaId] ?? "").trim() }));
+    if (entradas.some((entrada) => !entrada.texto)) {
+      setError("Escribe el horario de cada biblioteca seleccionada");
+      return;
+    }
     try {
-      await api.post("/admin/horarios-extraordinarios", {
-        bibliotecaIds,
-        fechaInicio,
-        fechaFin: fechaFin || fechaInicio,
-        texto,
-      });
+      await api.post("/admin/horarios-extraordinarios", { fechaInicio, fechaFin: fechaFin || fechaInicio, entradas });
       setBibliotecaIds([]);
+      setTextos({});
       setFechaInicio("");
       setFechaFin("");
-      setTexto("");
       cargar();
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo crear el horario");
@@ -109,7 +109,6 @@ export function ExtraordinarySchedulesAdmin() {
                 value={fechaFin}
                 min={fechaInicio || undefined}
                 onChange={(e) => setFechaFin(e.target.value)}
-                placeholder={fechaInicio}
                 className={`w-full ${inputClass}`}
               />
               <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
@@ -118,17 +117,34 @@ export function ExtraordinarySchedulesAdmin() {
             </div>
           </div>
 
-          <textarea
-            value={texto}
-            onChange={(e) => setTexto(e.target.value)}
-            placeholder={"Ej. Horario reducido: **10:00-13:00** por obras en la sala"}
-            required
-            rows={3}
-            className={`w-full ${inputClass}`}
-          />
-          <p className="text-xs text-slate-400 dark:text-slate-500">
-            Admite Markdown básico: **negrita**, *cursiva* y listas con "- ".
-          </p>
+          {bibliotecaIds.length > 0 && (
+            <div className="space-y-3">
+              <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                Horario de cada biblioteca (cada una puede tener uno distinto)
+              </p>
+              {bibliotecas
+                .filter((b) => bibliotecaIds.includes(b.id))
+                .map((b) => (
+                  <div key={b.id}>
+                    <label className="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400">
+                      {b.nombre}
+                    </label>
+                    <textarea
+                      value={textos[b.id] ?? ""}
+                      onChange={(e) => setTextos((prev) => ({ ...prev, [b.id]: e.target.value }))}
+                      placeholder={"Ej. Horario reducido: **10:00-13:00** por obras en la sala"}
+                      required
+                      rows={3}
+                      className={`w-full ${inputClass}`}
+                    />
+                  </div>
+                ))}
+              <p className="text-xs text-slate-400 dark:text-slate-500">
+                Admite Markdown básico: **negrita**, *cursiva* y listas con "- ".
+              </p>
+            </div>
+          )}
+
           <button className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
             Añadir
           </button>
@@ -145,7 +161,7 @@ export function ExtraordinarySchedulesAdmin() {
               <div key={h.id} className="flex flex-wrap items-start justify-between gap-2 py-2 text-sm">
                 <div>
                   <p className="font-medium text-slate-800 dark:text-slate-100">
-                    {h.bibliotecas.map((b) => b.nombre).join(", ")} · {formatearRango(h.fechaInicio, h.fechaFin)}
+                    {h.biblioteca.nombre} · {formatearRango(h.fechaInicio, h.fechaFin)}
                   </p>
                   <MiniMarkdown texto={h.texto} className="text-slate-500 dark:text-slate-400" />
                 </div>
