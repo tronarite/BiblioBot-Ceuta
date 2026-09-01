@@ -1,7 +1,10 @@
 import { useState } from "react";
 import type { Programacion } from "../api/types";
 
+// Índice = día de la semana según Date.getDay() (0 = domingo); ORDEN_SEMANA solo
+// reordena cómo se muestran, para que la semana visualmente empiece en lunes.
 const DIAS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+const ORDEN_SEMANA = [1, 2, 3, 4, 5, 6, 0];
 
 const ESTADO_LABEL: Record<Programacion["estado"], string> = {
   activa: "Activa",
@@ -87,16 +90,16 @@ export function ScheduleCard({
       </div>
 
       <div className="mt-3 flex gap-1 text-xs">
-        {DIAS.map((d, i) => (
+        {ORDEN_SEMANA.map((i) => (
           <span
-            key={d}
+            key={DIAS[i]}
             className={`flex h-6 w-6 items-center justify-center rounded-full ${
               diasSemana.includes(i)
                 ? "bg-brand-100 text-brand-700 dark:bg-brand-900/40 dark:text-brand-300"
                 : "text-slate-300 dark:text-slate-600"
             }`}
           >
-            {d[0]}
+            {DIAS[i][0]}
           </span>
         ))}
       </div>

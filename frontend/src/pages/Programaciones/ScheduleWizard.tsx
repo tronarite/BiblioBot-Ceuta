@@ -4,7 +4,14 @@ import type { Biblioteca, Planta, Programacion } from "../../api/types";
 import { FullScreenPanel } from "../../components/FullScreenPanel";
 import { ImageLightbox } from "../../components/ImageLightbox";
 
+// Índice = día de la semana según Date.getDay() (0 = domingo); ORDEN_SEMANA solo
+// reordena cómo se muestran, para que la semana visualmente empiece en lunes.
 const DIAS = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+const ORDEN_SEMANA = [1, 2, 3, 4, 5, 6, 0];
+
+function ordenarDias(dias: number[]): number[] {
+  return [...dias].sort((a, b) => ORDEN_SEMANA.indexOf(a) - ORDEN_SEMANA.indexOf(b));
+}
 
 const PLANO_POR_PLANTA: Record<string, string> = {
   "3ª Planta": "/Planta3.jpg",
@@ -93,7 +100,7 @@ export function ScheduleWizard({
         { label: "Biblioteca y planta", value: planta ? `${biblioteca?.nombre} · ${planta.nombre}` : null, onEdit: () => setStep(1) },
         { label: "Turnos", value: turnos.length ? turnos.map((t) => (t === "manana" ? "Mañana" : "Tarde")).join(" y ") : null, onEdit: () => setStep(2) },
         { label: "Tipo", value: tipo, onEdit: () => setStep(3) },
-        { label: "Días", value: dias.length ? dias.map((d) => DIAS[d].slice(0, 3)).join(", ") : null, onEdit: () => setStep(4) },
+        { label: "Días", value: dias.length ? ordenarDias(dias).map((d) => DIAS[d].slice(0, 3)).join(", ") : null, onEdit: () => setStep(4) },
         { label: "Asiento preferido", value: preferidoCodigo || null, onEdit: preferidoCodigo ? () => setStep(5) : undefined },
         { label: "Asiento alternativo", value: alternativoCodigo || null },
       ]}
@@ -216,7 +223,8 @@ export function ScheduleWizard({
       {step === 4 && biblioteca && planta && (
         <div className="max-w-md space-y-4">
           <div className="grid grid-cols-2 gap-2">
-            {DIAS.map((label, i) => {
+            {ORDEN_SEMANA.map((i) => {
+              const label = DIAS[i];
               const motivos = turnos.map((t) => reglaPermite(biblioteca, planta, t, i)).filter(Boolean);
               const invalido = motivos.length === turnos.length && turnos.length > 0;
               return (
@@ -324,7 +332,7 @@ export function ScheduleWizard({
               {turnos.map((t) => (t === "manana" ? "Mañana" : "Tarde")).join(" y ")}
             </p>
             <p>
-              <span className="text-slate-500 dark:text-slate-400">Días:</span> {dias.map((d) => DIAS[d]).join(", ")}
+              <span className="text-slate-500 dark:text-slate-400">Días:</span> {ordenarDias(dias).map((d) => DIAS[d]).join(", ")}
             </p>
             <p>
               <span className="text-slate-500 dark:text-slate-400">Preferido:</span> {preferidoCodigo}
