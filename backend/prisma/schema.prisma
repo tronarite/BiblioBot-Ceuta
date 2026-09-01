@@ -56,7 +56,7 @@ model Biblioteca {
   plantas                 Planta[]
   reservas                Reserva[]
   programaciones          Programacion[]
-  horariosExtraordinarios HorarioExtraordinario[]
+  horariosExtraordinarios HorarioExtraordinario[] @relation("HorarioExtraordinarioBibliotecas")
 }
 
 model Planta {
@@ -149,9 +149,9 @@ model MensajeDashboard {
 
 model HorarioExtraordinario {
   id            String      @id @default(cuid())
-  bibliotecaId  String
-  biblioteca    Biblioteca  @relation(fields: [bibliotecaId], references: [id], onDelete: Cascade)
-  fecha         DateTime
+  bibliotecas   Biblioteca[] @relation("HorarioExtraordinarioBibliotecas")
+  fechaInicio   DateTime
+  fechaFin      DateTime
   texto         String
   autorId       String
   autor         Usuario     @relation(fields: [autorId], references: [id])

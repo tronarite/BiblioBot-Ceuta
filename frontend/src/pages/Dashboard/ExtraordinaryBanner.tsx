@@ -1,6 +1,14 @@
 import { MiniMarkdown } from "../../components/MiniMarkdown";
 import type { HorarioExtraordinario } from "../../api/types";
 
+function formatearRango(fechaInicio: string, fechaFin: string): string {
+  const opciones: Intl.DateTimeFormatOptions = { day: "numeric", month: "long" };
+  const inicio = new Date(fechaInicio).toLocaleDateString("es-ES", opciones);
+  if (fechaInicio === fechaFin) return inicio;
+  const fin = new Date(fechaFin).toLocaleDateString("es-ES", opciones);
+  return `${inicio} – ${fin}`;
+}
+
 export function ExtraordinaryBanner({ horarios }: { horarios: HorarioExtraordinario[] }) {
   if (horarios.length === 0) return null;
   return (
@@ -9,8 +17,8 @@ export function ExtraordinaryBanner({ horarios }: { horarios: HorarioExtraordina
       <div className="space-y-2 text-sm text-amber-900 dark:text-amber-200">
         {horarios.map((h) => (
           <div key={h.id}>
-            <span className="font-medium">{h.biblioteca.nombre}</span> ·{" "}
-            {new Date(h.fecha).toLocaleDateString("es-ES", { day: "numeric", month: "long" })}
+            <span className="font-medium">{h.bibliotecas.map((b) => b.nombre).join(", ")}</span> ·{" "}
+            {formatearRango(h.fechaInicio, h.fechaFin)}
             <MiniMarkdown texto={h.texto} />
           </div>
         ))}

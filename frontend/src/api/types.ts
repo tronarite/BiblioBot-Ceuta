@@ -126,9 +126,9 @@ export type ActividadLog = {
 
 export type HorarioExtraordinario = {
   id: string;
-  bibliotecaId: string;
-  biblioteca: Biblioteca;
-  fecha: string;
+  bibliotecas: Biblioteca[];
+  fechaInicio: string;
+  fechaFin: string;
   texto: string;
 };
 

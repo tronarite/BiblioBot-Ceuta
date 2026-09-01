@@ -34,33 +34,65 @@ adminRouter.put("/dashboard-message", requireAdmin, async (req, res) => {
 // --- Horarios extraordinarios ------------------------------------------------
 adminRouter.get("/horarios-extraordinarios", async (_req, res) => {
   const horarios = await prisma.horarioExtraordinario.findMany({
-    where: { fecha: { gte: new Date(new Date().toDateString()) } },
-    include: { biblioteca: true },
-    orderBy: { fecha: "asc" },
+    where: { fechaFin: { gte: new Date(new Date().toDateString()) } },
+    include: { bibliotecas: true },
+    orderBy: { fechaInicio: "asc" },
   });
   res.json(horarios);
 });
 
-const horarioSchema = z.object({
-  bibliotecaId: z.string(),
-  fecha: z.string(),
-  texto: z.string().min(1),
-});
+const horarioSchema = z
+  .object({
+    bibliotecaIds: z.array(z.string()).min(1, "Selecciona al menos una biblioteca"),
+    fechaInicio: z.string(),
+    fechaFin: z.string(),
+    texto: z.string().min(1),
+  })
+  .refine((data) => data.fechaFin >= data.fechaInicio, {
+    message: "La fecha de fin no puede ser anterior a la de inicio",
+    path: ["fechaFin"],
+  });
 
 adminRouter.post("/horarios-extraordinarios", requireAdmin, async (req, res) => {
   const parsed = horarioSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "Datos inválidos" });
+  if (!parsed.success) return res.status(400).json({ error: "Datos inválidos", detalles: parsed.error.flatten() });
+  const { bibliotecaIds, fechaInicio, fechaFin, texto } = parsed.data;
   const horario = await prisma.horarioExtraordinario.create({
-    data: { ...parsed.data, fecha: new Date(parsed.data.fecha), autorId: req.user!.sub },
+    data: {
+      texto,
+      fechaInicio: new Date(fechaInicio),
+      fechaFin: new Date(fechaFin),
+      autorId: req.user!.sub,
+      bibliotecas: { connect: bibliotecaIds.map((id) => ({ id })) },
+    },
+    include: { bibliotecas: true },
   });
   res.status(201).json(horario);
 });
 
+const horarioActualizarSchema = z
+  .object({
+    bibliotecaIds: z.array(z.string()).min(1).optional(),
+    fechaInicio: z.string().optional(),
+    fechaFin: z.string().optional(),
+    texto: z.string().min(1).optional(),
+  })
+  .refine((data) => Object.keys(data).length > 0, { message: "Nada que actualizar" });
+
 adminRouter.patch("/horarios-extraordinarios/:id", requireAdmin, async (req, res) => {
-  const parsed = horarioSchema.partial().safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "Datos inválidos" });
-  const data = { ...parsed.data, fecha: parsed.data.fecha ? new Date(parsed.data.fecha) : undefined };
-  const horario = await prisma.horarioExtraordinario.update({ where: { id: req.params.id }, data });
+  const parsed = horarioActualizarSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Datos inválidos", detalles: parsed.error.flatten() });
+  const { bibliotecaIds, fechaInicio, fechaFin, texto } = parsed.data;
+  const horario = await prisma.horarioExtraordinario.update({
+    where: { id: req.params.id },
+    data: {
+      texto,
+      fechaInicio: fechaInicio ? new Date(fechaInicio) : undefined,
+      fechaFin: fechaFin ? new Date(fechaFin) : undefined,
+      bibliotecas: bibliotecaIds ? { set: bibliotecaIds.map((id) => ({ id })) } : undefined,
+    },
+    include: { bibliotecas: true },
+  });
   res.json(horario);
 });
 
