@@ -45,6 +45,16 @@ export type DisponibilidadBiblioteca = {
   proximoDiaDisponibleTexto?: string;
 };
 
+// Respuesta de los endpoints con caché stale-while-revalidate (disponibilidad general,
+// estado de turnos): "items" puede venir de una consulta anterior a PatronBase en vez de
+// recién scrapeada; "actualizando" indica que el servidor está refrescándola en segundo
+// plano en este mismo momento.
+export type ConCache<T> = {
+  items: T;
+  actualizadoEn: string;
+  actualizando: boolean;
+};
+
 export type PerformanceOption = {
   perfId: string;
   label: string;

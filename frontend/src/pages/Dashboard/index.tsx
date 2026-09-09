@@ -2,7 +2,7 @@ import { Fragment, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../../api/client";
 import { useAuth } from "../../auth/AuthContext";
-import type { Biblioteca, DisponibilidadBiblioteca, HorarioExtraordinario, ReservationsResponse } from "../../api/types";
+import type { Biblioteca, ConCache, DisponibilidadBiblioteca, HorarioExtraordinario, ReservationsResponse } from "../../api/types";
 import { AvailabilityBadge } from "../../components/AvailabilityBadge";
 import { BookingWizard } from "./BookingWizard";
 import { ExtraordinaryBanner } from "./ExtraordinaryBanner";
@@ -35,11 +35,27 @@ export function DashboardPage() {
     setReservas(reservasRes);
     setHorarios(horariosRes);
     setMensaje(mensajeRes?.texto ?? null);
+    cargarDisponibilidad();
+  }
 
+  function cargarDisponibilidad() {
     api
-      .get<DisponibilidadBiblioteca[]>("/libraries/disponibilidad")
-      .then(setDisponibilidad)
-      .catch(() => setDisponibilidad([]));
+      .get<ConCache<DisponibilidadBiblioteca[]>>("/libraries/disponibilidad")
+      .then((res) => {
+        setDisponibilidad(res.items);
+        if (res.actualizando) {
+          // Se sirvió una versión en caché algo desactualizada mientras el servidor la
+          // refresca en segundo plano; se vuelve a pedir una vez para reflejar el cambio
+          // (si lo hay) sin que haga falta recargar la página a mano.
+          setTimeout(() => {
+            api
+              .get<ConCache<DisponibilidadBiblioteca[]>>("/libraries/disponibilidad")
+              .then((r) => setDisponibilidad(r.items))
+              .catch(() => {});
+          }, 4000);
+        }
+      })
+      .catch(() => setDisponibilidad((prev) => prev ?? []));
   }
 
   useEffect(() => {
@@ -90,34 +106,40 @@ export function DashboardPage() {
 
           <ExtraordinaryBanner horarios={horarios} />
 
-          <div>
-            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-              Ocupación de las bibliotecas
-            </h2>
-            {disponibilidad === null ? (
-              <p className="text-sm text-slate-400 dark:text-slate-500">Consultando disponibilidad en PatronBase…</p>
-            ) : disponibilidadVisible.length === 0 ? (
-              <p className="text-sm text-slate-400 dark:text-slate-500">
-                Has ocultado todas las bibliotecas.{" "}
-                <Link to="/cuenta" className="text-brand-600 hover:underline dark:text-brand-400">
-                  Cambia cuáles ver desde Cuenta
-                </Link>
-                .
-              </p>
-            ) : (
-              // auto-fit en vez de un nº fijo de columnas: si ocultas bibliotecas desde Cuenta,
-              // las tarjetas restantes se reparten el espacio libre en vez de dejarlo vacío,
-              // tanto en móvil como en escritorio.
-              <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">
-                {disponibilidadVisible.map((d) => (
-                  <AvailabilityBadge key={d.bibliotecaId} disponibilidad={d} />
-                ))}
-              </div>
-            )}
-          </div>
+          {/* En escritorio, ocupación y reservas van una al lado de la otra para aprovechar
+              el ancho disponible; en móvil (grid-cols-1) se apilan como antes. */}
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:items-start">
+            <div>
+              <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                Ocupación de las bibliotecas
+              </h2>
+              {disponibilidad === null ? (
+                <p className="text-sm text-slate-400 dark:text-slate-500">Consultando disponibilidad en PatronBase…</p>
+              ) : disponibilidadVisible.length === 0 ? (
+                <p className="text-sm text-slate-400 dark:text-slate-500">
+                  Has ocultado todas las bibliotecas.{" "}
+                  <Link to="/cuenta" className="text-brand-600 hover:underline dark:text-brand-400">
+                    Cambia cuáles ver desde Cuenta
+                  </Link>
+                  .
+                </p>
+              ) : (
+                // auto-fit en vez de un nº fijo de columnas: si ocultas bibliotecas desde
+                // Cuenta, las tarjetas restantes se reparten el espacio libre en vez de
+                // dejarlo vacío.
+                <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">
+                  {disponibilidadVisible.map((d) => (
+                    <AvailabilityBadge key={d.bibliotecaId} disponibilidad={d} />
+                  ))}
+                </div>
+              )}
+            </div>
 
-          <ReservationsList titulo="En curso" reservas={reservas.enCurso} vacio="No tienes reservas en curso" />
-          <ReservationsList titulo="Próximas" reservas={reservas.proximas} vacio="No tienes próximas reservas" />
+            <div className="space-y-8">
+              <ReservationsList titulo="En curso" reservas={reservas.enCurso} vacio="No tienes reservas en curso" />
+              <ReservationsList titulo="Próximas" reservas={reservas.proximas} vacio="No tienes próximas reservas" />
+            </div>
+          </div>
         </div>
       )}
 

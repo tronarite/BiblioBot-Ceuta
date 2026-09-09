@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { requireAuth } from "../auth/auth.middleware";
-import { getDisponibilidad, getEstadoTurnos, listBibliotecas } from "./libraries.service";
+import { getDisponibilidadCacheada, getEstadoTurnosCacheado, listBibliotecas } from "./libraries.service";
 
 export const librariesRouter = Router();
 librariesRouter.use(requireAuth);
@@ -11,11 +11,11 @@ librariesRouter.get("/", async (_req, res) => {
 });
 
 librariesRouter.get("/disponibilidad", async (_req, res) => {
-  const disponibilidad = await getDisponibilidad();
-  res.json(disponibilidad);
+  const { datos, actualizadoEn, actualizando } = await getDisponibilidadCacheada();
+  res.json({ items: datos, actualizadoEn, actualizando });
 });
 
 librariesRouter.get("/turnos-estado", async (_req, res) => {
-  const estado = await getEstadoTurnos();
-  res.json(estado);
+  const { datos, actualizadoEn, actualizando } = await getEstadoTurnosCacheado();
+  res.json({ items: datos, actualizadoEn, actualizando });
 });

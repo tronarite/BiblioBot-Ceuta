@@ -2,6 +2,7 @@ import { prisma } from "../db";
 import { getPerformances, getSeatMap } from "../patronbase/adapter";
 import { PatronBaseSession } from "../patronbase/session";
 import { addDays, labelMatchesDate } from "./dateEs";
+import { conCacheSwr } from "./cache";
 
 export async function listBibliotecas() {
   return prisma.biblioteca.findMany({
@@ -31,7 +32,13 @@ async function turnoTieneAsientoLibre(session: PatronBaseSession, prodId: string
   }
 }
 
-export async function getDisponibilidad(): Promise<DisponibilidadBiblioteca[]> {
+const TTL_DISPONIBILIDAD_MS = 3 * 60 * 1000; // 3 min: es solo un resumen informativo del dashboard
+
+export async function getDisponibilidadCacheada() {
+  return conCacheSwr("disponibilidad", TTL_DISPONIBILIDAD_MS, getDisponibilidadEnVivo);
+}
+
+async function getDisponibilidadEnVivo(): Promise<DisponibilidadBiblioteca[]> {
   const bibliotecas = await listBibliotecas();
   const session = new PatronBaseSession();
   const hoy = new Date();
@@ -110,7 +117,13 @@ const UMBRAL_POCAS_PLAZAS = 5;
  * También calcula, solo para el día de hoy, cuántas plazas quedan libres: si son pocas
  * (<= UMBRAL_POCAS_PLAZAS) se marca pocasPlazasHoy para avisar al elegir turno.
  */
-export async function getEstadoTurnos(): Promise<EstadoTurno[]> {
+const TTL_TURNOS_ESTADO_MS = 60 * 1000; // 1 min: se usa mientras se elige turno para reservar
+
+export async function getEstadoTurnosCacheado() {
+  return conCacheSwr("turnos-estado", TTL_TURNOS_ESTADO_MS, getEstadoTurnosEnVivo);
+}
+
+async function getEstadoTurnosEnVivo(): Promise<EstadoTurno[]> {
   const bibliotecas = await listBibliotecas();
   const turnos = bibliotecas.flatMap((b) => b.plantas.flatMap((p) => p.turnos));
   const hoy = new Date();

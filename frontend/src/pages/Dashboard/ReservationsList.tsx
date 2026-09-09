@@ -72,7 +72,9 @@ export function ReservationsList({ titulo, reservas, vacio }: { titulo: string; 
           {vacio}
         </p>
       ) : (
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+        // auto-fit en vez de un breakpoint fijo: se adapta al ancho real del contenedor
+        // (a pantalla completa o compartiendo espacio con "Ocupación de las bibliotecas").
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-3">
           {reservas.map((r) => (
             <ReservaCard key={r.saleId + r.fecha + r.asiento} reserva={r} />
           ))}

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../../api/client";
 import { parseSpanishDateLabel } from "../../api/dateEs";
-import type { Biblioteca, EstadoTurno, PerformanceOption, PerformancesResponse, Planta, SeatInfo, Turno } from "../../api/types";
+import type { Biblioteca, ConCache, EstadoTurno, PerformanceOption, PerformancesResponse, Planta, SeatInfo, Turno } from "../../api/types";
 import { formatearAsiento, parseAsiento } from "../../api/seatLabel";
 import { FullScreenPanel } from "../../components/FullScreenPanel";
 import { ImageLightbox } from "../../components/ImageLightbox";
@@ -62,8 +62,21 @@ export function BookingWizard({
 
   useEffect(() => {
     api
-      .get<EstadoTurno[]>("/libraries/turnos-estado")
-      .then(setEstadoTurnos)
+      .get<ConCache<EstadoTurno[]>>("/libraries/turnos-estado")
+      .then((res) => {
+        setEstadoTurnos(res.items);
+        if (res.actualizando) {
+          // Los datos venían de caché y el servidor los está refrescando en segundo
+          // plano; se consulta una vez más al cabo de unos segundos para reflejar el
+          // cambio (p. ej. el aviso de "pocas plazas") sin recargar la página.
+          setTimeout(() => {
+            api
+              .get<ConCache<EstadoTurno[]>>("/libraries/turnos-estado")
+              .then((r) => setEstadoTurnos(r.items))
+              .catch(() => {});
+          }, 4000);
+        }
+      })
       .catch(() => setEstadoTurnos([]));
   }, []);
 
