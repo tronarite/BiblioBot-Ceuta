@@ -35,9 +35,8 @@ export function VisibleLibraries() {
     <div className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-800">
       <h2 className="mb-1 font-medium text-slate-800 dark:text-slate-100">Bibliotecas visibles</h2>
       <p className="mb-3 text-sm text-slate-500 dark:text-slate-400">
-        Elige qué bibliotecas quieres ver en el dashboard. Las que desmarques dejarán de aparecer para dejar más
-        espacio a las que te interesan — sigues pudiendo reservar en ellas desde "Hacer una reserva" o crear
-        programaciones normalmente.
+        Elige qué bibliotecas te interesan. Las que desmarques desaparecen de toda la app: del dashboard, de
+        "Hacer una reserva" y de las programaciones nuevas. Puedes volver a marcarlas cuando quieras.
       </p>
       {error && <p className="mb-2 text-sm text-red-600 dark:text-red-400">{error}</p>}
       <div className="space-y-2">

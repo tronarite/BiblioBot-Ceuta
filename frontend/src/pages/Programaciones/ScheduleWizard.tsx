@@ -127,6 +127,11 @@ export function ScheduleWizard({
               biblioteca y la planta.
             </p>
           </div>
+          {bibliotecas.length === 0 && (
+            <p className="text-sm text-slate-400 dark:text-slate-500">
+              Has ocultado todas las bibliotecas desde Cuenta. Vuelve a marcar alguna ahí para poder programar.
+            </p>
+          )}
           {bibliotecas.map((b) => (
             <div key={b.id}>
               <h3 className="mb-2 font-medium text-slate-700 dark:text-slate-200">{b.nombre}</h3>

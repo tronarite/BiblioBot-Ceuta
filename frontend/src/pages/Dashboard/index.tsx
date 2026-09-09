@@ -64,6 +64,7 @@ export function DashboardPage() {
 
   const ocultas = usuario?.bibliotecasOcultas ?? [];
   const disponibilidadVisible = (disponibilidad ?? []).filter((d) => !ocultas.includes(d.bibliotecaId));
+  const bibliotecasVisibles = bibliotecas.filter((b) => !ocultas.includes(b.id));
 
   return (
     <Fragment>
@@ -106,10 +107,15 @@ export function DashboardPage() {
 
           <ExtraordinaryBanner horarios={horarios} />
 
-          {/* En escritorio, ocupación y reservas van una al lado de la otra para aprovechar
-              el ancho disponible; en móvil (grid-cols-1) se apilan como antes. */}
-          <div className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:items-start">
-            <div>
+          {/* 3 bloques: en curso / próximas arriba una al lado de la otra en escritorio, y
+              ocupación abajo ocupando todo el ancho. En móvil (grid-cols-1) se apilan en
+              ese mismo orden, así lo primero que se ve son las reservas actuales y luego
+              el estado de las bibliotecas. */}
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+            <ReservationsList titulo="En curso" reservas={reservas.enCurso} vacio="No tienes reservas en curso" />
+            <ReservationsList titulo="Próximas" reservas={reservas.proximas} vacio="No tienes próximas reservas" />
+
+            <div className="lg:col-span-2">
               <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                 Ocupación de las bibliotecas
               </h2>
@@ -134,11 +140,6 @@ export function DashboardPage() {
                 </div>
               )}
             </div>
-
-            <div className="space-y-8">
-              <ReservationsList titulo="En curso" reservas={reservas.enCurso} vacio="No tienes reservas en curso" />
-              <ReservationsList titulo="Próximas" reservas={reservas.proximas} vacio="No tienes próximas reservas" />
-            </div>
           </div>
         </div>
       )}
@@ -148,7 +149,7 @@ export function DashboardPage() {
 
       {wizardOpen && (
         <BookingWizard
-          bibliotecas={bibliotecas}
+          bibliotecas={bibliotecasVisibles}
           onClose={() => setWizardOpen(false)}
           onCreated={() => {
             setWizardOpen(false);

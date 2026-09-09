@@ -1,13 +1,18 @@
 import { Fragment, useEffect, useState } from "react";
 import { api } from "../../api/client";
+import { useAuth } from "../../auth/AuthContext";
 import type { Biblioteca, Programacion } from "../../api/types";
 import { ScheduleCard } from "../../components/ScheduleCard";
 import { ScheduleWizard } from "./ScheduleWizard";
 
 export function ProgramacionesPage() {
+  const { usuario } = useAuth();
   const [programaciones, setProgramaciones] = useState<Programacion[]>([]);
   const [bibliotecas, setBibliotecas] = useState<Biblioteca[]>([]);
   const [wizardTarget, setWizardTarget] = useState<"nueva" | Programacion | null>(null);
+
+  const ocultas = usuario?.bibliotecasOcultas ?? [];
+  const bibliotecasVisibles = bibliotecas.filter((b) => !ocultas.includes(b.id));
 
   async function cargar() {
     const [progs, libs] = await Promise.all([
@@ -72,7 +77,10 @@ export function ProgramacionesPage() {
 
       {wizardTarget && (
         <ScheduleWizard
-          bibliotecas={bibliotecas}
+          // Al crear una nueva programación solo se ofrecen las bibliotecas visibles;
+          // al editar una ya existente se pasan todas, para no romper la edición si su
+          // biblioteca se ocultó después de crearla.
+          bibliotecas={wizardTarget === "nueva" ? bibliotecasVisibles : bibliotecas}
           programacion={wizardTarget === "nueva" ? null : wizardTarget}
           onClose={() => setWizardTarget(null)}
           onCreated={() => {
