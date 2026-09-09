@@ -1,5 +1,6 @@
 import "dotenv/config";
 import { prisma } from "./db";
+import { normalizeEmail } from "./auth/auth.service";
 
 type TurnoSeed = { tipo: "manana" | "tarde"; horario: string; patronbaseProdId: string };
 type PlantaSeed = { nombre: string; reglasEspeciales?: string; turnos: TurnoSeed[] };
@@ -132,6 +133,23 @@ async function main() {
   }
 
   console.log("Seed completado: bibliotecas, plantas y turnos cargados.");
+
+  // Normaliza a minúsculas los emails de cuentas creadas antes de este cambio (el login
+  // ahora compara en minúsculas; sin esto una cuenta con "Nombre@Ejemplo.com" guardado
+  // seguiría sin poder iniciar sesión escribiendo su email en cualquier variante de mayúsculas).
+  const usuariosConEmail = await prisma.usuario.findMany({ where: { email: { not: null } } });
+  for (const usuario of usuariosConEmail) {
+    const normalizado = normalizeEmail(usuario.email!);
+    if (normalizado !== usuario.email) {
+      try {
+        await prisma.usuario.update({ where: { id: usuario.id }, data: { email: normalizado } });
+      } catch (err) {
+        // Ya existe otra cuenta cuyo email normalizado coincide (caso extremo, dos cuentas
+        // que solo diferían en mayúsculas): se deja como estaba en vez de romper el arranque.
+        console.warn(`No se pudo normalizar el email de la cuenta ${usuario.id}:`, err);
+      }
+    }
+  }
 }
 
 main()

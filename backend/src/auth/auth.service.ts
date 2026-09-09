@@ -24,3 +24,10 @@ export function verifyToken(token: string): JwtPayload {
 }
 
 export const AUTH_COOKIE_NAME = "bibliobot_token";
+
+// Los emails se guardan y se buscan siempre en minúsculas: SQLite compara texto de forma
+// sensible a mayúsculas por defecto, así que sin esto "Ana@Ejemplo.com" al registrarse y
+// "ana@ejemplo.com" al iniciar sesión se tratarían como cuentas distintas.
+export function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase();
+}

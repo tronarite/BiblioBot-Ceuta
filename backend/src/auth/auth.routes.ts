@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { Usuario } from "@prisma/client";
 import { prisma } from "../db";
 import { env } from "../env";
-import { AUTH_COOKIE_NAME, hashPassword, signToken, verifyPassword } from "./auth.service";
+import { AUTH_COOKIE_NAME, hashPassword, normalizeEmail, signToken, verifyPassword } from "./auth.service";
 import { requireAuth } from "./auth.middleware";
 
 export const authRouter = Router();
@@ -46,7 +46,8 @@ authRouter.post("/bootstrap-admin", async (req, res) => {
   if (!parsed.success) {
     return res.status(400).json({ error: "Datos inválidos", detalles: parsed.error.flatten() });
   }
-  const { nombre, email, password } = parsed.data;
+  const { nombre, password } = parsed.data;
+  const email = normalizeEmail(parsed.data.email);
 
   const existente = await prisma.usuario.findUnique({ where: { email } });
   if (existente) {
@@ -76,7 +77,7 @@ authRouter.post("/login", async (req, res) => {
   const { identificador, password } = parsed.data;
 
   const usuario =
-    (await prisma.usuario.findUnique({ where: { email: identificador } })) ??
+    (await prisma.usuario.findUnique({ where: { email: normalizeEmail(identificador) } })) ??
     (await prisma.usuario.findUnique({ where: { username: identificador } }));
   if (!usuario || !usuario.activo) {
     return res.status(401).json({ error: "Credenciales incorrectas" });

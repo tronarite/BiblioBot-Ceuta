@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../db";
 import { requireAuth } from "../auth/auth.middleware";
-import { hashPassword, verifyPassword } from "../auth/auth.service";
+import { hashPassword, normalizeEmail, verifyPassword } from "../auth/auth.service";
 
 export const selfRouter = Router();
 selfRouter.use(requireAuth);
@@ -43,7 +43,7 @@ selfRouter.patch("/", async (req, res) => {
 
   const data: { nombre?: string; email?: string; passwordHash?: string; bibliotecasOcultas?: string } = {};
   if (nombre) data.nombre = nombre;
-  if (email) data.email = email;
+  if (email) data.email = normalizeEmail(email);
   if (bibliotecasOcultas) data.bibliotecasOcultas = JSON.stringify(bibliotecasOcultas);
 
   if (passwordNueva) {

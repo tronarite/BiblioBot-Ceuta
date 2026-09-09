@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../db";
 import { requireAdmin, requireAuth } from "../auth/auth.middleware";
-import { hashPassword } from "../auth/auth.service";
+import { hashPassword, normalizeEmail } from "../auth/auth.service";
 
 export const adminRouter = Router();
 adminRouter.use(requireAuth);
@@ -134,7 +134,8 @@ const crearUsuarioSchema = z
 adminRouter.post("/usuarios", requireAdmin, async (req, res) => {
   const parsed = crearUsuarioSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Datos inválidos" });
-  const { nombre, usaCorreo, email, username, password, rol } = parsed.data;
+  const { nombre, usaCorreo, username, password, rol } = parsed.data;
+  const email = usaCorreo && parsed.data.email ? normalizeEmail(parsed.data.email) : undefined;
 
   const existente = await prisma.usuario.findFirst({
     where: usaCorreo ? { email } : { username },
