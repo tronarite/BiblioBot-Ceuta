@@ -81,32 +81,44 @@ export function DashboardPage() {
         )}
       </div>
 
-      <div className="flex w-fit max-w-full gap-1 overflow-x-auto rounded-lg bg-slate-100 p-1 text-sm dark:bg-slate-800">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            className={`whitespace-nowrap rounded-md px-3 py-1.5 ${
-              tab === t.id
-                ? "bg-white font-medium shadow dark:bg-slate-700 dark:text-slate-100"
-                : "text-slate-500 dark:text-slate-400"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
+      {/* Las pestañas dejaban todo el ancho a su derecha vacío; ahora los avisos (mensaje
+          del dashboard, horarios extraordinarios) aprovechan ese hueco en vez de ocupar
+          una franja aparte a todo lo ancho más abajo. En móvil, al no caber, bajan debajo
+          de las pestañas de forma natural (flex-wrap). */}
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex w-fit max-w-full gap-1 overflow-x-auto rounded-lg bg-slate-100 p-1 text-sm dark:bg-slate-800">
+          {TABS.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={`whitespace-nowrap rounded-md px-3 py-1.5 ${
+                tab === t.id
+                  ? "bg-white font-medium shadow dark:bg-slate-700 dark:text-slate-100"
+                  : "text-slate-500 dark:text-slate-400"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        {(mensaje || horarios.length > 0) && (
+          <div className="flex flex-1 flex-wrap items-start justify-end gap-3">
+            {mensaje && (
+              <div className="w-fit max-w-full rounded-xl border border-brand-200 bg-brand-50 p-4 text-sm text-brand-900 dark:border-brand-900/60 dark:bg-brand-900/20 dark:text-brand-200 sm:max-w-xs">
+                <h2 className="mb-1 text-xs font-semibold uppercase tracking-wide text-brand-600 dark:text-brand-400">
+                  Aviso
+                </h2>
+                {mensaje}
+              </div>
+            )}
+            <ExtraordinaryBanner horarios={horarios} />
+          </div>
+        )}
       </div>
 
       {tab === "general" && (
         <div className="space-y-8">
-          {mensaje && (
-            <div className="rounded-xl bg-brand-50 p-4 text-sm text-brand-800 dark:bg-brand-900/30 dark:text-brand-200">
-              {mensaje}
-            </div>
-          )}
-
-          <ExtraordinaryBanner horarios={horarios} />
-
           {/* 3 bloques: en curso / próximas arriba una al lado de la otra en escritorio, y
               ocupación abajo ocupando todo el ancho. En móvil (grid-cols-1) se apilan en
               ese mismo orden, así lo primero que se ve son las reservas actuales y luego
