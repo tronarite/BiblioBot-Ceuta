@@ -4,17 +4,32 @@ Aplicación web que automatiza la reserva de puestos de estudio en las bibliotec
 
 BiblioBot ofrece una interfaz propia por encima del sistema oficial: reservas puntuales con mapa de asientos en vivo, y **programaciones recurrentes** que reservan automáticamente el mismo puesto cada día en el instante exacto en que PatronBase abre el hueco.
 
+## Capturas
+
+Vista con una cuenta de demostración sin datos reales.
+
+![Login](docs/screenshots/login.jpg)
+
+| Dashboard | Programaciones |
+|---|---|
+| ![Dashboard](docs/screenshots/dashboard.jpg) | ![Programaciones](docs/screenshots/programaciones.jpg) |
+
+| Cuenta (bibliotecas visibles + actividad) | Horarios extraordinarios (admin) |
+|---|---|
+| ![Cuenta](docs/screenshots/cuenta.jpg) | ![Horarios extraordinarios](docs/screenshots/admin-horarios.jpg) |
+
 ## Por qué existe
 
 PatronBase solo permite reservar con un día de antelación, y el hueco de cada día se abre a una hora fija (normalmente las 07:00). Para alguien que estudia en la biblioteca a diario, eso significa entrar manualmente cada mañana a pelear por el mismo asiento. BiblioBot automatiza ese proceso.
 
 ## Funcionalidad
 
-- **Dashboard**: estado de ocupación en vivo de las 3 bibliotecas (hoy/mañana/ninguno), reservas en curso y próximas leídas directamente del historial real de PatronBase, planos de las salas, avisos de horarios extraordinarios.
-- **Reserva puntual**: asistente paso a paso (biblioteca → turno → día → mapa de asientos en vivo → confirmación) que ejecuta la reserva real contra PatronBase.
-- **Programaciones**: crea una regla ("reserva el asiento nº 24 de Adolfo Suárez 5ª, mañanas, de lunes a viernes, indefinidamente") y un motor en segundo plano la ejecuta automáticamente cada día, con reintento si el primer intento falla y asiento alternativo si el preferido ya no está libre.
-- **Cuenta**: vinculación de las credenciales de PatronBase (cifradas en base de datos), historial de actividad del bot (éxitos, fallos, reintentos).
-- **Administración**: gestión de cuentas de usuario, mensaje del dashboard, horarios extraordinarios — solo visible para administradores.
+- **Dashboard**: reservas en curso y próximas (leídas directamente del historial real de PatronBase, con enlace a cada una en PatronBase) arriba, estado de ocupación en vivo de las bibliotecas abajo, planos de las salas y avisos de horarios extraordinarios. El layout aprovecha el espacio en escritorio y se adapta a una columna en móvil.
+- **Reserva puntual**: asistente paso a paso (biblioteca → turno → día → mapa de asientos en vivo → confirmación) que ejecuta la reserva real contra PatronBase, con una cesta para reservar varios turnos de una vez.
+- **Programaciones**: crea una regla con nombre propio ("Estudio de mañanas") que reserva un asiento fijo (con alternativo si el preferido no está libre), mañanas y/o tardes, en los días de la semana que elijas. Un motor en segundo plano la ejecuta automáticamente cada día en cuanto PatronBase abre el hueco, con reintento si falla. Las programaciones ya creadas se pueden editar por completo, no solo pausar o borrar.
+- **Bibliotecas visibles**: cada cuenta puede ocultar las bibliotecas que no le interesan — desaparecen del dashboard, del asistente de reserva y de las programaciones nuevas, dejando más espacio a las que sí usas.
+- **Cuenta**: vinculación de las credenciales de PatronBase (cifradas en base de datos), login por email sin distinguir mayúsculas de minúsculas, historial de actividad del bot (éxitos, fallos, reintentos).
+- **Administración**: gestión de cuentas de usuario, mensaje del dashboard, horarios extraordinarios (rango de fechas, varias bibliotecas a la vez con su propio texto en Markdown cada una) — solo visible para administradores.
 - **Modo oscuro** y diseño **responsive** (escritorio y móvil).
 
 ## Cómo funciona por dentro
@@ -22,6 +37,8 @@ PatronBase solo permite reservar con un día de antelación, y el hueco de cada 
 PatronBase no es una SPA: es una aplicación clásica renderizada en servidor (formularios HTML + un par de endpoints AJAX). El adaptador de BiblioBot (`backend/src/patronbase/`) no usa un navegador headless — hace peticiones HTTP directas manteniendo su propia cookie de sesión, y parsea el HTML con `cheerio`. Esto lo hace mucho más ligero que una solución basada en Playwright/Puppeteer.
 
 El motor de programaciones (`backend/src/schedules/engine.ts`) es un cron que revisa cada minuto si hay programaciones que deban dispararse hoy, valida las reglas de negocio de cada biblioteca (por ejemplo, Adolfo Suárez no admite reservas en fin de semana por la tarde) y ejecuta la reserva real.
+
+Las consultas de solo lectura más pesadas (ocupación general del dashboard, estado de turnos al reservar) usan una caché en memoria "stale-while-revalidate" (`backend/src/libraries/cache.ts`): si el último dato sigue fresco se sirve sin volver a scrapear PatronBase; si está desactualizado se sirve igual al momento y se refresca en segundo plano. Nada que decida una reserva real (mapa de asientos, checkout) pasa por esta caché — eso siempre se pide en vivo, justo antes de retener o confirmar un asiento.
 
 ## Stack técnico
 
