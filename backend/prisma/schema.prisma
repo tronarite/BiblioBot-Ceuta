@@ -57,7 +57,6 @@ model Biblioteca {
   plantas                 Planta[]
   reservas                Reserva[]
   programaciones          Programacion[]
-  horariosExtraordinarios HorarioExtraordinario[]
 }
 
 model Planta {
@@ -148,12 +147,12 @@ model MensajeDashboard {
   fechaActualizacion  DateTime  @updatedAt
 }
 
+// Simplificado a solo texto libre en Markdown (sin biblioteca ni fechas estructuradas):
+// los horarios extraordinarios son casos irregulares y variados, más fáciles de describir
+// en texto libre ("Cierre por obras del 12 al 14 de septiembre en Adolfo Suárez") que de
+// encajar en un formulario rígido de biblioteca(s) + rango de fechas.
 model HorarioExtraordinario {
   id            String      @id @default(cuid())
-  bibliotecaId  String
-  biblioteca    Biblioteca  @relation(fields: [bibliotecaId], references: [id], onDelete: Cascade)
-  fechaInicio   DateTime
-  fechaFin      DateTime
   texto         String
   autorId       String
   autor         Usuario     @relation(fields: [autorId], references: [id])

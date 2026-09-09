@@ -137,11 +137,8 @@ export type ActividadLog = {
 
 export type HorarioExtraordinario = {
   id: string;
-  bibliotecaId: string;
-  biblioteca: Biblioteca;
-  fechaInicio: string;
-  fechaFin: string;
   texto: string;
+  createdAt: string;
 };
 
 export type CuentaPatronBaseStatus = {
