@@ -4,8 +4,9 @@ import { api } from "../../api/client";
 import { useAuth } from "../../auth/AuthContext";
 import type { Biblioteca, ConCache, DisponibilidadBiblioteca, HorarioExtraordinario, ReservationsResponse } from "../../api/types";
 import { AvailabilityBadge } from "../../components/AvailabilityBadge";
+import { Dropdown } from "../../components/Dropdown";
+import { MiniMarkdown } from "../../components/MiniMarkdown";
 import { BookingWizard } from "./BookingWizard";
-import { ExtraordinaryBanner } from "./ExtraordinaryBanner";
 import { FloorPlans } from "./FloorPlans";
 import { ReservationsList } from "./ReservationsList";
 
@@ -69,8 +70,53 @@ export function DashboardPage() {
   return (
     <Fragment>
     <div className="space-y-6">
+      <h1 className="text-xl font-semibold text-slate-800 dark:text-slate-100">Dashboard</h1>
+
+      {/* Todos los controles de la página en una sola franja: pestañas, avisos (como
+          desplegables compactos en vez de recuadros siempre abiertos) y el botón de
+          reserva a la derecha. En móvil, lo que no cabe baja a la siguiente línea
+          (flex-wrap) en vez de amontonarse. */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold text-slate-800 dark:text-slate-100">Dashboard</h1>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex w-fit max-w-full gap-1 overflow-x-auto rounded-lg bg-slate-100 p-1 text-sm dark:bg-slate-800">
+            {TABS.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                className={`whitespace-nowrap rounded-md px-3 py-1.5 ${
+                  tab === t.id
+                    ? "bg-white font-medium shadow dark:bg-slate-700 dark:text-slate-100"
+                    : "text-slate-500 dark:text-slate-400"
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          {mensaje && (
+            <Dropdown
+              label="Aviso ▾"
+              buttonClassName="whitespace-nowrap rounded-lg border border-brand-200 bg-brand-50 px-3 py-1.5 text-sm font-medium text-brand-700 hover:bg-brand-100 dark:border-brand-900/60 dark:bg-brand-900/20 dark:text-brand-300 dark:hover:bg-brand-900/40"
+              panelClassName="w-72 max-w-[90vw] border-brand-200 text-brand-900 dark:border-brand-900/60 dark:text-brand-200"
+            >
+              {mensaje}
+            </Dropdown>
+          )}
+
+          {horarios.length > 0 && (
+            <Dropdown
+              label="Horarios extraordinarios ▾"
+              buttonClassName="whitespace-nowrap rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-sm font-medium text-amber-700 hover:bg-amber-100 dark:border-amber-900/60 dark:bg-amber-900/20 dark:text-amber-300 dark:hover:bg-amber-900/40"
+              panelClassName="w-80 max-w-[90vw] space-y-3 border-amber-200 text-amber-900 dark:border-amber-900/60 dark:text-amber-200"
+            >
+              {horarios.map((h) => (
+                <MiniMarkdown key={h.id} texto={h.texto} />
+              ))}
+            </Dropdown>
+          )}
+        </div>
+
         {tab === "general" && (
           <button
             onClick={() => setWizardOpen(true)}
@@ -79,40 +125,6 @@ export function DashboardPage() {
             Hacer una reserva
           </button>
         )}
-      </div>
-
-      {/* Las pestañas dejaban todo el ancho a su derecha vacío; ahora los avisos (mensaje
-          del dashboard, horarios extraordinarios) aprovechan ese hueco justo a continuación
-          en vez de ocupar una franja aparte a todo lo ancho más abajo. Se pegan a las
-          pestañas (no al borde derecho) para no quedar bajo el botón "Hacer una reserva"
-          de la fila de arriba. En móvil, al no caber, bajan debajo de las pestañas de forma
-          natural (flex-wrap). */}
-      <div className="flex flex-wrap items-start gap-3">
-        <div className="flex w-fit max-w-full gap-1 overflow-x-auto rounded-lg bg-slate-100 p-1 text-sm dark:bg-slate-800">
-          {TABS.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={`whitespace-nowrap rounded-md px-3 py-1.5 ${
-                tab === t.id
-                  ? "bg-white font-medium shadow dark:bg-slate-700 dark:text-slate-100"
-                  : "text-slate-500 dark:text-slate-400"
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-
-        {mensaje && (
-          <div className="w-fit max-w-full rounded-xl border border-brand-200 bg-brand-50 p-4 text-sm text-brand-900 dark:border-brand-900/60 dark:bg-brand-900/20 dark:text-brand-200 sm:max-w-xs">
-            <h2 className="mb-1 text-xs font-semibold uppercase tracking-wide text-brand-600 dark:text-brand-400">
-              Aviso
-            </h2>
-            {mensaje}
-          </div>
-        )}
-        <ExtraordinaryBanner horarios={horarios} />
       </div>
 
       {tab === "general" && (
