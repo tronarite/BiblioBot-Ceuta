@@ -7,6 +7,7 @@ export type Usuario = {
   username: string | null;
   rol: Rol;
   activo?: boolean;
+  bibliotecasOcultas: string[];
 };
 
 export type Turno = {

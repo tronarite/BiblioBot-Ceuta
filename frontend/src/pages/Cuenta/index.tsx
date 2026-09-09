@@ -4,6 +4,7 @@ import { api } from "../../api/client";
 import { useAuth } from "../../auth/AuthContext";
 import { ActivityLog } from "./ActivityLog";
 import { PatronBaseLink } from "./PatronBaseLink";
+import { VisibleLibraries } from "./VisibleLibraries";
 
 const inputClass =
   "rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100";
@@ -93,6 +94,7 @@ export function CuentaPage() {
       </div>
 
       <PatronBaseLink />
+      <VisibleLibraries />
       <ActivityLog />
     </div>
   );

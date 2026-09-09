@@ -1,5 +1,7 @@
 import { Fragment, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { api } from "../../api/client";
+import { useAuth } from "../../auth/AuthContext";
 import type { Biblioteca, DisponibilidadBiblioteca, HorarioExtraordinario, ReservationsResponse } from "../../api/types";
 import { AvailabilityBadge } from "../../components/AvailabilityBadge";
 import { BookingWizard } from "./BookingWizard";
@@ -13,6 +15,7 @@ const TABS = [
 ] as const;
 
 export function DashboardPage() {
+  const { usuario } = useAuth();
   const [tab, setTab] = useState<(typeof TABS)[number]["id"]>("general");
   const [bibliotecas, setBibliotecas] = useState<Biblioteca[]>([]);
   const [disponibilidad, setDisponibilidad] = useState<DisponibilidadBiblioteca[] | null>(null);
@@ -42,6 +45,9 @@ export function DashboardPage() {
   useEffect(() => {
     cargar();
   }, []);
+
+  const ocultas = usuario?.bibliotecasOcultas ?? [];
+  const disponibilidadVisible = (disponibilidad ?? []).filter((d) => !ocultas.includes(d.bibliotecaId));
 
   return (
     <Fragment>
@@ -90,9 +96,20 @@ export function DashboardPage() {
             </h2>
             {disponibilidad === null ? (
               <p className="text-sm text-slate-400 dark:text-slate-500">Consultando disponibilidad en PatronBase…</p>
+            ) : disponibilidadVisible.length === 0 ? (
+              <p className="text-sm text-slate-400 dark:text-slate-500">
+                Has ocultado todas las bibliotecas.{" "}
+                <Link to="/cuenta" className="text-brand-600 hover:underline dark:text-brand-400">
+                  Cambia cuáles ver desde Cuenta
+                </Link>
+                .
+              </p>
             ) : (
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                {disponibilidad.map((d) => (
+              // auto-fit en vez de un nº fijo de columnas: si ocultas bibliotecas desde Cuenta,
+              // las tarjetas restantes se reparten el espacio libre en vez de dejarlo vacío,
+              // tanto en móvil como en escritorio.
+              <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">
+                {disponibilidadVisible.map((d) => (
                   <AvailabilityBadge key={d.bibliotecaId} disponibilidad={d} />
                 ))}
               </div>

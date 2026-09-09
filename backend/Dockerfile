@@ -21,7 +21,11 @@ RUN npm run build
 RUN npm prune --omit=dev
 
 FROM node:20-alpine AS runtime
-RUN apk add --no-cache openssl
+# tzdata: sin esto, fijar TZ no cambia nada (musl no trae zoneinfo por defecto) y el
+# proceso se queda en UTC, desincronizado de la hora real de Ceuta (útil para decidir si
+# una reserva de hoy está "en curso" o "próxima" según su franja horaria).
+RUN apk add --no-cache openssl tzdata
+ENV TZ=Europe/Madrid
 WORKDIR /app
 
 ENV NODE_ENV=production

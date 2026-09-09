@@ -4,6 +4,9 @@ import type { Programacion } from "../api/types";
 // Índice = día de la semana según Date.getDay() (0 = domingo); ORDEN_SEMANA solo
 // reordena cómo se muestran, para que la semana visualmente empiece en lunes.
 const DIAS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+// Inicial de cada día para los puntos de la tarjeta; Miércoles usa "X" (no "M") para no
+// confundirse con Martes.
+const INICIAL = ["D", "L", "M", "X", "J", "V", "S"];
 const ORDEN_SEMANA = [1, 2, 3, 4, 5, 6, 0];
 
 const ESTADO_LABEL: Record<Programacion["estado"], string> = {
@@ -99,7 +102,7 @@ export function ScheduleCard({
                 : "text-slate-300 dark:text-slate-600"
             }`}
           >
-            {DIAS[i][0]}
+            {INICIAL[i]}
           </span>
         ))}
       </div>

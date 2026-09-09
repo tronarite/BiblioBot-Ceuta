@@ -1,11 +1,23 @@
 import { Router } from "express";
 import { z } from "zod";
+import type { Usuario } from "@prisma/client";
 import { prisma } from "../db";
 import { env } from "../env";
 import { AUTH_COOKIE_NAME, hashPassword, signToken, verifyPassword } from "./auth.service";
 import { requireAuth } from "./auth.middleware";
 
 export const authRouter = Router();
+
+function serializeUsuario(usuario: Usuario) {
+  return {
+    id: usuario.id,
+    nombre: usuario.nombre,
+    email: usuario.email,
+    username: usuario.username,
+    rol: usuario.rol,
+    bibliotecasOcultas: JSON.parse(usuario.bibliotecasOcultas) as string[],
+  };
+}
 
 const cookieOptions = {
   httpOnly: true,
@@ -48,7 +60,7 @@ authRouter.post("/bootstrap-admin", async (req, res) => {
 
   const token = signToken({ sub: usuario.id, rol: "admin" });
   res.cookie(AUTH_COOKIE_NAME, token, cookieOptions);
-  res.status(201).json({ id: usuario.id, nombre: usuario.nombre, email: usuario.email, username: usuario.username, rol: usuario.rol });
+  res.status(201).json(serializeUsuario(usuario));
 });
 
 const loginSchema = z.object({
@@ -76,7 +88,7 @@ authRouter.post("/login", async (req, res) => {
 
   const token = signToken({ sub: usuario.id, rol: usuario.rol as "admin" | "usuario" });
   res.cookie(AUTH_COOKIE_NAME, token, cookieOptions);
-  res.json({ id: usuario.id, nombre: usuario.nombre, email: usuario.email, username: usuario.username, rol: usuario.rol });
+  res.json(serializeUsuario(usuario));
 });
 
 authRouter.post("/logout", (_req, res) => {
@@ -89,5 +101,5 @@ authRouter.get("/me", requireAuth, async (req, res) => {
   if (!usuario) {
     return res.status(404).json({ error: "Usuario no encontrado" });
   }
-  res.json({ id: usuario.id, nombre: usuario.nombre, email: usuario.email, username: usuario.username, rol: usuario.rol });
+  res.json(serializeUsuario(usuario));
 });

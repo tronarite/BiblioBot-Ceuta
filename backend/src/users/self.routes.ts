@@ -7,10 +7,21 @@ import { hashPassword, verifyPassword } from "../auth/auth.service";
 export const selfRouter = Router();
 selfRouter.use(requireAuth);
 
+function serializeUsuario(usuario: { id: string; nombre: string; email: string | null; username: string | null; rol: string; bibliotecasOcultas: string }) {
+  return {
+    id: usuario.id,
+    nombre: usuario.nombre,
+    email: usuario.email,
+    username: usuario.username,
+    rol: usuario.rol,
+    bibliotecasOcultas: JSON.parse(usuario.bibliotecasOcultas) as string[],
+  };
+}
+
 selfRouter.get("/", async (req, res) => {
   const usuario = await prisma.usuario.findUnique({ where: { id: req.user!.sub } });
   if (!usuario) return res.status(404).json({ error: "Usuario no encontrado" });
-  res.json({ id: usuario.id, nombre: usuario.nombre, email: usuario.email, username: usuario.username, rol: usuario.rol });
+  res.json(serializeUsuario(usuario));
 });
 
 const updateSchema = z.object({
@@ -18,6 +29,7 @@ const updateSchema = z.object({
   email: z.string().email().optional(),
   passwordActual: z.string().optional(),
   passwordNueva: z.string().min(8).optional(),
+  bibliotecasOcultas: z.array(z.string()).optional(),
 });
 
 selfRouter.patch("/", async (req, res) => {
@@ -25,13 +37,14 @@ selfRouter.patch("/", async (req, res) => {
   if (!parsed.success) {
     return res.status(400).json({ error: "Datos inválidos" });
   }
-  const { nombre, email, passwordActual, passwordNueva } = parsed.data;
+  const { nombre, email, passwordActual, passwordNueva, bibliotecasOcultas } = parsed.data;
   const usuario = await prisma.usuario.findUnique({ where: { id: req.user!.sub } });
   if (!usuario) return res.status(404).json({ error: "Usuario no encontrado" });
 
-  const data: { nombre?: string; email?: string; passwordHash?: string } = {};
+  const data: { nombre?: string; email?: string; passwordHash?: string; bibliotecasOcultas?: string } = {};
   if (nombre) data.nombre = nombre;
   if (email) data.email = email;
+  if (bibliotecasOcultas) data.bibliotecasOcultas = JSON.stringify(bibliotecasOcultas);
 
   if (passwordNueva) {
     if (!passwordActual || !(await verifyPassword(passwordActual, usuario.passwordHash))) {
@@ -41,5 +54,5 @@ selfRouter.patch("/", async (req, res) => {
   }
 
   const actualizado = await prisma.usuario.update({ where: { id: usuario.id }, data });
-  res.json({ id: actualizado.id, nombre: actualizado.nombre, email: actualizado.email, username: actualizado.username, rol: actualizado.rol });
+  res.json(serializeUsuario(actualizado));
 });

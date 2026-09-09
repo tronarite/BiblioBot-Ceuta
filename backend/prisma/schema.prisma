@@ -27,6 +27,7 @@ model Usuario {
   rol                 String    @default("usuario")
   activo              Boolean   @default(true)
   fechaCreacion       DateTime  @default(now())
+  bibliotecasOcultas  String    @default("[]") // JSON array de ids de Biblioteca ocultas en el dashboard de este usuario
 
   cuentaPatronBase    CuentaPatronBase?
   reservas            Reserva[]
