@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { api, ApiError } from "../api/client";
+import { borrarLocalConPrefijo } from "../api/localCache";
 import type { Usuario } from "../api/types";
 
 type AuthState = {
@@ -58,6 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async () => {
     await api.post("/auth/logout");
+    borrarLocalConPrefijo("dash:");
     setUsuario(null);
   }, []);
 

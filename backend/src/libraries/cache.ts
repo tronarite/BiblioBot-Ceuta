@@ -46,6 +46,12 @@ export type ResultadoCacheado<T> = {
   actualizando: boolean;
 };
 
+/** Fuerza que la próxima consulta a esa clave vaya en vivo (p. ej. tras crear una reserva). */
+export function invalidarCache(clave: string): void {
+  cache.delete(clave);
+  prisma.cacheEntry.deleteMany({ where: { clave } }).catch(() => {});
+}
+
 /**
  * Caché "stale-while-revalidate" (en memoria + persistida en DB) para endpoints de solo
  * lectura que consultan PatronBase en vivo (disponibilidad general, estado de turnos):

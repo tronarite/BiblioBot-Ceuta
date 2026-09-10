@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../../api/client";
+import { guardarLocal, leerLocal } from "../../api/localCache";
 import { useAuth } from "../../auth/AuthContext";
 import type { Biblioteca, ConCache, DisponibilidadBiblioteca, HorarioExtraordinario, ReservationsResponse } from "../../api/types";
 import { AvailabilityBadge } from "../../components/AvailabilityBadge";
@@ -15,25 +16,52 @@ const TABS = [
   { id: "planos", label: "Planos de las salas" },
 ] as const;
 
+const VACIO: ReservationsResponse = { enCurso: [], proximas: [] };
+const claveReservas = (usuarioId: string | undefined) => `dash:reservas:${usuarioId ?? "anon"}`;
+
 export function DashboardPage() {
   const { usuario } = useAuth();
   const [tab, setTab] = useState<(typeof TABS)[number]["id"]>("general");
   const [bibliotecas, setBibliotecas] = useState<Biblioteca[]>([]);
-  const [disponibilidad, setDisponibilidad] = useState<DisponibilidadBiblioteca[] | null>(null);
-  const [reservas, setReservas] = useState<ReservationsResponse>({ enCurso: [], proximas: [] });
+  // Se inicializan con lo último que se vio (localStorage) para que al entrar/recargar el
+  // dashboard muestre datos al instante y solo se actualice en segundo plano si cambian.
+  const [disponibilidad, setDisponibilidad] = useState<DisponibilidadBiblioteca[] | null>(
+    () => leerLocal<DisponibilidadBiblioteca[]>("dash:disponibilidad"),
+  );
+  const [reservas, setReservas] = useState<ReservationsResponse>(
+    () => leerLocal<ReservationsResponse>(claveReservas(usuario?.id)) ?? VACIO,
+  );
   const [horarios, setHorarios] = useState<HorarioExtraordinario[]>([]);
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [wizardOpen, setWizardOpen] = useState(false);
 
+  function aplicarReservas(res: ConCache<ReservationsResponse>) {
+    setReservas(res.items);
+    guardarLocal(claveReservas(usuario?.id), res.items);
+    if (res.actualizando) {
+      // El servidor sirvió una copia en caché algo vieja y la está refrescando ahora
+      // mismo; se vuelve a pedir una vez para reflejar el cambio sin recargar a mano.
+      setTimeout(() => {
+        api
+          .get<ConCache<ReservationsResponse>>("/reservations")
+          .then((r) => {
+            setReservas(r.items);
+            guardarLocal(claveReservas(usuario?.id), r.items);
+          })
+          .catch(() => {});
+      }, 5000);
+    }
+  }
+
   async function cargar() {
     const [libs, reservasRes, horariosRes, mensajeRes] = await Promise.all([
       api.get<Biblioteca[]>("/libraries"),
-      api.get<ReservationsResponse>("/reservations"),
+      api.get<ConCache<ReservationsResponse>>("/reservations"),
       api.get<HorarioExtraordinario[]>("/admin/horarios-extraordinarios"),
       api.get<{ texto: string } | null>("/admin/dashboard-message"),
     ]);
     setBibliotecas(libs);
-    setReservas(reservasRes);
+    aplicarReservas(reservasRes);
     setHorarios(horariosRes);
     setMensaje(mensajeRes?.texto ?? null);
     cargarDisponibilidad();
@@ -44,6 +72,7 @@ export function DashboardPage() {
       .get<ConCache<DisponibilidadBiblioteca[]>>("/libraries/disponibilidad")
       .then((res) => {
         setDisponibilidad(res.items);
+        guardarLocal("dash:disponibilidad", res.items);
         if (res.actualizando) {
           // Se sirvió una versión en caché algo desactualizada mientras el servidor la
           // refresca en segundo plano; se vuelve a pedir una vez para reflejar el cambio
@@ -51,7 +80,10 @@ export function DashboardPage() {
           setTimeout(() => {
             api
               .get<ConCache<DisponibilidadBiblioteca[]>>("/libraries/disponibilidad")
-              .then((r) => setDisponibilidad(r.items))
+              .then((r) => {
+                setDisponibilidad(r.items);
+                guardarLocal("dash:disponibilidad", r.items);
+              })
               .catch(() => {});
           }, 4000);
         }

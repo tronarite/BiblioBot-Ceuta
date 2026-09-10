@@ -5,7 +5,7 @@ import {
   crearReservaPuntual,
   getPerformancesForTurno,
   getSeatMapForTurno,
-  listReservations,
+  listReservationsCacheada,
 } from "./reservations.service";
 
 export const reservationsRouter = Router();
@@ -13,8 +13,8 @@ reservationsRouter.use(requireAuth);
 
 reservationsRouter.get("/", async (req, res) => {
   try {
-    const data = await listReservations(req.user!.sub);
-    res.json(data);
+    const { datos, actualizadoEn, actualizando } = await listReservationsCacheada(req.user!.sub);
+    res.json({ items: datos, actualizadoEn, actualizando });
   } catch (err) {
     res.status(502).json({ error: (err as Error).message });
   }

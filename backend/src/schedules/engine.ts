@@ -5,6 +5,7 @@ import { logActivity } from "../activity/activity.service";
 import { getAuthenticatedSession } from "../patronbaseAccount/account.service";
 import { coincideAsiento, confirmSeats, getCart, getPerformances, getSeatMap, holdSeat, checkout as patronbaseCheckout } from "../patronbase/adapter";
 import { addDays, labelMatchesDate } from "../libraries/dateEs";
+import { invalidarReservas } from "../reservations/reservations.service";
 import { diaTurnoPermitido } from "./rules";
 import type { Prisma } from "@prisma/client";
 
@@ -97,6 +98,7 @@ async function intentarTurno(
       },
     });
 
+    invalidarReservas(programacion.usuarioId);
     return { exito: true, motivo: `Reservado ${codigo} en ${programacion.planta.nombre} (${turnoTipo})` };
   }
 

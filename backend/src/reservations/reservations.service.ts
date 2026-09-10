@@ -15,6 +15,7 @@ import {
 import { PatronBaseSession } from "../patronbase/session";
 import { withAccountLock } from "../patronbase/accountLock";
 import { addDays, parseSpanishDate, startOfDay } from "../libraries/dateEs";
+import { conCacheSwr, invalidarCache } from "../libraries/cache";
 
 export type ReservaPatronBase = {
   saleId: string;
@@ -167,6 +168,24 @@ export async function listReservations(usuarioId: string): Promise<{ enCurso: Re
   };
 }
 
+const TTL_RESERVAS_MS = 90 * 1000;
+const claveReservas = (usuarioId: string) => `reservas:${usuarioId}`;
+
+/**
+ * Versión cacheada (stale-while-revalidate, persistida) de listReservations: leer el
+ * historial de PatronBase implica varias peticiones scrapeadas y tarda. Con la caché, al
+ * entrar al dashboard se ven al instante las reservas de la última vez y se refrescan en
+ * segundo plano. Se invalida al crear una reserva (manual o del motor) para no mostrar
+ * datos viejos justo después.
+ */
+export async function listReservationsCacheada(usuarioId: string) {
+  return conCacheSwr(claveReservas(usuarioId), TTL_RESERVAS_MS, () => listReservations(usuarioId));
+}
+
+export function invalidarReservas(usuarioId: string) {
+  invalidarCache(claveReservas(usuarioId));
+}
+
 export async function getPerformancesForTurno(turnoId: string) {
   const turno = await prisma.turno.findUnique({ where: { id: turnoId } });
   if (!turno) throw new Error("Turno no encontrado");
@@ -265,6 +284,7 @@ export async function crearReservaPuntual(params: {
       mensaje: `Reserva confirmada: ${params.seat.label} en ${turno.planta.nombre} (${turno.tipo})`,
     });
 
+    invalidarReservas(params.usuarioId);
     return reserva;
   });
 }
