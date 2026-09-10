@@ -380,6 +380,11 @@ export type SaleDetailItem = {
  * una con su propia línea "{producción} — {fecha} a las {hora} horas ({sala})" seguida
  * de su propia línea de asiento "(... Fila X - Asiento Y)". Se emparejan por orden de
  * aparición en la página.
+ *
+ * El bloque de asiento puede llevar paréntesis anidados en el nombre del área (algunas
+ * salas se llaman literalmente "GENERAL(55)"), así que la regex tolera un nivel de
+ * anidamiento y luego se limpia ese "(NN)" sobrante para mostrar solo "GENERAL Fila 4 -
+ * Asiento 55".
  */
 export async function getSaleDetail(session: PatronBaseSession, saleId: string): Promise<SaleDetailItem[]> {
   const res = await session.get(`/Patron/ViewSale?sale=${encodeURIComponent(saleId)}`);
@@ -393,13 +398,17 @@ export async function getSaleDetail(session: PatronBaseSession, saleId: string):
   const sessionMatches = Array.from(
     text.matchAll(/(B\.P\.[^\n—]*?)\s*—\s*([^\n]+?)\s+a las\s+(\d{1,2}:\d{2})\s+horas\s*\(([^)]+)\)/g),
   );
-  const seatMatches = Array.from(text.matchAll(/\(([^)]*Fila[^)]*)\)/gi));
+  const seatMatches = Array.from(
+    text.matchAll(/\(([^()]*(?:\([^()]*\)[^()]*)*Fila[^()]*(?:\([^()]*\)[^()]*)*)\)/gi),
+  );
 
   return sessionMatches.map((m, i) => ({
     tituloProduccion: cleanText(m[1]),
     fechaSesionTexto: cleanText(m[2]),
     horaSesion: m[3],
     sala: cleanText(m[4]),
-    asiento: seatMatches[i] ? cleanText(seatMatches[i][1]) : "",
+    asiento: seatMatches[i]
+      ? cleanText(seatMatches[i][1]).replace(/\s*\(\d+\)/g, "").replace(/\s+/g, " ").trim()
+      : "",
   }));
 }

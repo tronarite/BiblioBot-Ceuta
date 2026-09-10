@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { api } from "../../api/client";
 import { parseSpanishDateLabel } from "../../api/dateEs";
 import type { Biblioteca, ConCache, EstadoTurno, PerformanceOption, PerformancesResponse, Planta, SeatInfo, Turno } from "../../api/types";
@@ -6,6 +6,7 @@ import { formatearAsiento, parseAsiento } from "../../api/seatLabel";
 import { FullScreenPanel } from "../../components/FullScreenPanel";
 import { ImageLightbox } from "../../components/ImageLightbox";
 import { SeatMapViewer } from "../../components/SeatMapViewer";
+import { SuccessOverlay } from "../../components/SuccessOverlay";
 import type { SummaryStep } from "../../components/SummarySidebar";
 
 type Fase = "elegir" | "dia" | "asiento" | "cesta";
@@ -48,6 +49,7 @@ export function BookingWizard({
   const [error, setError] = useState<string | null>(null);
   const [estadoTurnos, setEstadoTurnos] = useState<EstadoTurno[] | null>(null);
   const [planoAmpliado, setPlanoAmpliado] = useState(false);
+  const [exito, setExito] = useState(false);
 
   function plantaDe(t: Turno): Planta | null {
     return bibliotecas.flatMap((b) => b.plantas).find((p) => p.turnos.some((x) => x.id === t.id)) ?? null;
@@ -178,7 +180,10 @@ export function BookingWizard({
       if (exitosos.length > 0) onCreated();
       return;
     }
-    onCreated();
+    // Reserva(s) completadas sin fallos: se muestra el tick de confirmación un instante
+    // antes de cerrar el asistente y refrescar el dashboard.
+    setExito(true);
+    setTimeout(onCreated, 1800);
   }
 
   const steps: SummaryStep[] = cesta.map((c) => ({
@@ -188,6 +193,7 @@ export function BookingWizard({
   }));
 
   return (
+    <Fragment>
     <FullScreenPanel title="Hacer una reserva" onClose={onClose} steps={steps}>
       {error && (
         <p className="mb-4 whitespace-pre-line rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-900/20 dark:text-red-300">
@@ -436,5 +442,7 @@ export function BookingWizard({
         </div>
       )}
     </FullScreenPanel>
+      {exito && <SuccessOverlay />}
+    </Fragment>
   );
 }

@@ -5,3 +5,44 @@
 body {
   @apply bg-slate-50 text-slate-900 antialiased dark:bg-slate-900 dark:text-slate-100;
 }
+
+/* Animación del tick de confirmación (SuccessOverlay) */
+@keyframes bb-success-pop-kf {
+  0% {
+    transform: scale(0.85);
+    opacity: 0;
+  }
+  55% {
+    transform: scale(1.03);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+@keyframes bb-success-draw-kf {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.bb-success-pop {
+  animation: bb-success-pop-kf 0.35s ease-out both;
+}
+.bb-success-circle {
+  stroke-dasharray: 164;
+  stroke-dashoffset: 164;
+  animation: bb-success-draw-kf 0.5s ease-out 0.1s forwards;
+}
+.bb-success-check {
+  stroke-dasharray: 36;
+  stroke-dashoffset: 36;
+  animation: bb-success-draw-kf 0.3s ease-out 0.55s forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .bb-success-pop,
+  .bb-success-circle,
+  .bb-success-check {
+    animation-duration: 0.01ms;
+    animation-delay: 0s;
+  }
+}
