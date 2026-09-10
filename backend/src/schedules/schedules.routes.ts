@@ -21,8 +21,7 @@ const crearSchema = z.object({
   valorTipoNumero: z.number().int().positive().optional(),
   valorTipoFecha: z.string().optional(),
   diasSemana: z.array(z.number().int().min(0).max(6)).min(1),
-  asientoPreferidoCodigo: z.string().min(1),
-  asientoAlternativoCodigo: z.string().optional(),
+  asientosCodigos: z.array(z.string().trim().min(1)).min(1).max(10),
 });
 
 schedulesRouter.post("/", async (req, res) => {
@@ -47,8 +46,7 @@ const actualizarSchema = z
     valorTipoNumero: z.number().int().positive().optional(),
     valorTipoFecha: z.string().optional(),
     diasSemana: z.array(z.number().int().min(0).max(6)).min(1).optional(),
-    asientoPreferidoCodigo: z.string().min(1).optional(),
-    asientoAlternativoCodigo: z.string().optional(),
+    asientosCodigos: z.array(z.string().trim().min(1)).min(1).max(10).optional(),
   })
   .refine((data) => Object.keys(data).length > 0, { message: "Nada que actualizar" });
 

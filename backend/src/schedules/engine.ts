@@ -12,6 +12,18 @@ type ProgramacionConRelaciones = Prisma.ProgramacionGetPayload<{
   include: { biblioteca: true; planta: { include: { turnos: true } }; usuario: true };
 }>;
 
+// Lista ordenada de nº de asiento a intentar. Fuente de verdad: asientosCodigos (JSON
+// array). Fallback a las columnas legacy por si alguna programación antigua no se migró.
+function codigosDeAsiento(p: { asientosCodigos: string; asientoPreferidoCodigo: string | null; asientoAlternativoCodigo: string | null }): string[] {
+  try {
+    const lista = JSON.parse(p.asientosCodigos) as string[];
+    if (Array.isArray(lista) && lista.length > 0) return lista.filter(Boolean);
+  } catch {
+    /* cae al fallback */
+  }
+  return [p.asientoPreferidoCodigo, p.asientoAlternativoCodigo].filter((c): c is string => Boolean(c));
+}
+
 function proximaFechaDesde(diasSemana: number[], desde: Date): Date | null {
   for (let i = 1; i <= 8; i++) {
     const candidata = addDays(desde, i);
@@ -54,9 +66,7 @@ async function intentarTurno(
 
   const { seats, confirmHref } = await getSeatMap(session, turno.patronbaseProdId, objetivo.perfId);
 
-  const candidatos = [programacion.asientoPreferidoCodigo, programacion.asientoAlternativoCodigo].filter(
-    (c): c is string => Boolean(c),
-  );
+  const candidatos = codigosDeAsiento(programacion);
 
   for (const codigo of candidatos) {
     const asiento = seats.find((s) => coincideAsiento(codigo, s) && s.state === "available");
@@ -90,7 +100,7 @@ async function intentarTurno(
     return { exito: true, motivo: `Reservado ${codigo} en ${programacion.planta.nombre} (${turnoTipo})` };
   }
 
-  return { exito: false, motivo: "Ni el asiento preferido ni el alternativo estaban disponibles" };
+  return { exito: false, motivo: `Ninguno de los asientos indicados (${candidatos.join(", ")}) estaba disponible` };
 }
 
 async function procesarProgramacion(programacion: ProgramacionConRelaciones, esReintento: boolean) {

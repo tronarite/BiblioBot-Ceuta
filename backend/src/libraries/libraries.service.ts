@@ -38,6 +38,16 @@ export async function getDisponibilidadCacheada() {
   return conCacheSwr("disponibilidad", TTL_DISPONIBILIDAD_MS, getDisponibilidadEnVivo);
 }
 
+/**
+ * Refresca en segundo plano las cachés de disponibilidad y estado de turnos. Se llama al
+ * arrancar el servidor: como la caché está persistida, la primera visita ya ve un dato
+ * (algo viejo) al instante, y esto lo pone al día sin que nadie tenga que esperar.
+ */
+export function precalentarCache() {
+  getDisponibilidadCacheada().catch(() => {});
+  getEstadoTurnosCacheado().catch(() => {});
+}
+
 async function getDisponibilidadEnVivo(): Promise<DisponibilidadBiblioteca[]> {
   const bibliotecas = await listBibliotecas();
   const session = new PatronBaseSession();

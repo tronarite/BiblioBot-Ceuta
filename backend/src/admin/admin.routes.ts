@@ -2,7 +2,8 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../db";
 import { requireAdmin, requireAuth } from "../auth/auth.middleware";
-import { hashPassword, normalizeEmail } from "../auth/auth.service";
+import { generarPasswordTemporal, hashPassword, normalizeEmail } from "../auth/auth.service";
+import { comprobarScraper } from "../monitor/scraper-monitor";
 
 export const adminRouter = Router();
 adminRouter.use(requireAuth);
@@ -137,4 +138,54 @@ adminRouter.delete("/usuarios/:id", requireAdmin, async (req, res) => {
   }
   await prisma.usuario.delete({ where: { id: req.params.id } });
   res.status(204).send();
+});
+
+// Restablece la contraseña de un usuario: genera una temporal, la devuelve una sola vez
+// para que el admin se la comunique, y obliga al usuario a cambiarla al entrar.
+adminRouter.post("/usuarios/:id/reset-password", requireAdmin, async (req, res) => {
+  const usuario = await prisma.usuario.findUnique({ where: { id: req.params.id } });
+  if (!usuario) return res.status(404).json({ error: "Usuario no encontrado" });
+  const passwordTemporal = generarPasswordTemporal();
+  await prisma.usuario.update({
+    where: { id: usuario.id },
+    data: { passwordHash: await hashPassword(passwordTemporal), debeCambiarPassword: true },
+  });
+  res.json({ passwordTemporal });
+});
+
+// --- Vista global de administración ----------------------------------------
+adminRouter.get("/estado-sistema", requireAdmin, async (_req, res) => {
+  const [scraper, cuentas, programacionesActivas] = await Promise.all([
+    prisma.estadoScraper.findUnique({ where: { id: "scraper" } }),
+    prisma.cuentaPatronBase.groupBy({ by: ["estadoVinculacion"], _count: true }),
+    prisma.programacion.count({ where: { estado: "activa" } }),
+  ]);
+  const porEstado = { no_vinculada: 0, vinculada: 0, error: 0 } as Record<string, number>;
+  for (const c of cuentas) porEstado[c.estadoVinculacion] = c._count;
+  res.json({ scraper, cuentasPatronBase: porEstado, programacionesActivas });
+});
+
+adminRouter.post("/estado-sistema/comprobar-scraper", requireAdmin, async (_req, res) => {
+  const resultado = await comprobarScraper();
+  res.json(resultado);
+});
+
+adminRouter.get("/programaciones", requireAdmin, async (_req, res) => {
+  const programaciones = await prisma.programacion.findMany({
+    include: { biblioteca: true, planta: true, usuario: { select: { nombre: true, email: true, username: true } } },
+    orderBy: [{ estado: "asc" }, { proximaEjecucion: "asc" }],
+  });
+  res.json(programaciones);
+});
+
+adminRouter.get("/actividad", requireAdmin, async (_req, res) => {
+  const actividad = await prisma.actividadLog.findMany({
+    take: 150,
+    orderBy: { fecha: "desc" },
+    include: {
+      usuario: { select: { nombre: true } },
+      programacion: { select: { nombre: true } },
+    },
+  });
+  res.json(actividad);
 });

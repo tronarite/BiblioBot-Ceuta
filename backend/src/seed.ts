@@ -150,6 +150,18 @@ async function main() {
       }
     }
   }
+
+  // Migra las programaciones antiguas (asientoPreferidoCodigo/asientoAlternativoCodigo) a
+  // la lista ordenada asientosCodigos.
+  const programacionesSinLista = await prisma.programacion.findMany({
+    where: { OR: [{ asientosCodigos: "[]" }, { asientosCodigos: "" }] },
+  });
+  for (const p of programacionesSinLista) {
+    const lista = [p.asientoPreferidoCodigo, p.asientoAlternativoCodigo].filter((c): c is string => Boolean(c));
+    if (lista.length > 0) {
+      await prisma.programacion.update({ where: { id: p.id }, data: { asientosCodigos: JSON.stringify(lista) } });
+    }
+  }
 }
 
 main()

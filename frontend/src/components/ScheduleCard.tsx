@@ -30,6 +30,12 @@ export function ScheduleCard({
 }) {
   const turnos = JSON.parse(programacion.turnos) as string[];
   const diasSemana = JSON.parse(programacion.diasSemana) as number[];
+  let asientos: string[] = [];
+  try {
+    asientos = (JSON.parse(programacion.asientosCodigos) as string[]).filter(Boolean);
+  } catch {
+    /* sin asientos */
+  }
   const nombreMostrado = programacion.nombre || `${programacion.biblioteca.nombre} · ${programacion.planta.nombre}`;
 
   const [editando, setEditando] = useState(false);
@@ -107,7 +113,12 @@ export function ScheduleCard({
         ))}
       </div>
 
-      <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
+      {asientos.length > 0 && (
+        <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
+          Asientos (por orden): {asientos.join(", ")}
+        </p>
+      )}
+      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
         Reservas realizadas: {programacion.contadorReservasRealizadas}
         {programacion.tipo === "n_reservas" && programacion.valorTipoNumero ? ` / ${programacion.valorTipoNumero}` : ""}
       </p>

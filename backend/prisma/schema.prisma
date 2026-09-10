@@ -28,6 +28,7 @@ model Usuario {
   activo              Boolean   @default(true)
   fechaCreacion       DateTime  @default(now())
   bibliotecasOcultas  String    @default("[]") // JSON array de ids de Biblioteca ocultas en el dashboard de este usuario
+  debeCambiarPassword Boolean   @default(false) // true tras un restablecimiento por un admin: se fuerza el cambio al entrar
 
   cuentaPatronBase    CuentaPatronBase?
   reservas            Reserva[]
@@ -116,7 +117,10 @@ model Programacion {
   valorTipoNumero             Int?
   valorTipoFecha               DateTime?
   diasSemana                  String    // JSON array de 0-6 (dom-sab)
-  asientoPreferidoCodigo      String
+  // Lista ordenada de nº de asiento (JSON array): se prueban en orden hasta que uno esté libre.
+  asientosCodigos             String    @default("[]")
+  // Legacy (sustituidos por asientosCodigos; se conservan para no perder datos al migrar).
+  asientoPreferidoCodigo      String?
   asientoAlternativoCodigo    String?
   estado                      String    @default("activa")
   contadorReservasRealizadas  Int       @default(0)
@@ -157,4 +161,21 @@ model HorarioExtraordinario {
   autorId       String
   autor         Usuario     @relation(fields: [autorId], references: [id])
   createdAt     DateTime    @default(now())
+}
+
+// Caché "stale-while-revalidate" persistida: sobrevive a los reinicios para que la
+// primera carga tras un despliegue no tenga que esperar al scraping completo (ver cache.ts).
+model CacheEntry {
+  clave         String   @id
+  datos         String   // JSON
+  actualizadoEn DateTime
+}
+
+// Fila única (id fijo): resultado de la última comprobación automática de que el scraping
+// de PatronBase sigue funcionando (ver monitor/scraper-monitor.ts).
+model EstadoScraper {
+  id           String   @id @default("scraper")
+  ok           Boolean  @default(true)
+  detalle      String   @default("Sin comprobar todavía")
+  comprobadoEn DateTime @default(now())
 }

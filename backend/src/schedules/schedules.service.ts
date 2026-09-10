@@ -11,8 +11,7 @@ type CrearProgramacionInput = {
   valorTipoNumero?: number;
   valorTipoFecha?: string;
   diasSemana: number[];
-  asientoPreferidoCodigo: string;
-  asientoAlternativoCodigo?: string;
+  asientosCodigos: string[]; // en orden de preferencia
 };
 
 function proximaFecha(diasSemana: number[]): Date | null {
@@ -62,8 +61,7 @@ export async function createSchedule(input: CrearProgramacionInput) {
       valorTipoNumero: input.valorTipoNumero,
       valorTipoFecha: input.valorTipoFecha ? new Date(input.valorTipoFecha) : undefined,
       diasSemana: JSON.stringify(input.diasSemana),
-      asientoPreferidoCodigo: input.asientoPreferidoCodigo,
-      asientoAlternativoCodigo: input.asientoAlternativoCodigo,
+      asientosCodigos: JSON.stringify(input.asientosCodigos.map((c) => c.trim()).filter(Boolean)),
       estado: "activa",
       proximaEjecucion: proximaFecha(input.diasSemana) ?? undefined,
     },
@@ -83,8 +81,7 @@ type ActualizarProgramacionInput = Partial<{
   valorTipoNumero: number;
   valorTipoFecha: string;
   diasSemana: number[];
-  asientoPreferidoCodigo: string;
-  asientoAlternativoCodigo: string;
+  asientosCodigos: string[];
 }>;
 
 export async function updateSchedule(id: string, usuarioId: string, input: ActualizarProgramacionInput) {
@@ -122,11 +119,10 @@ export async function updateSchedule(id: string, usuarioId: string, input: Actua
       valorTipoFecha:
         tipo === "hasta_fecha" ? (input.valorTipoFecha ? new Date(input.valorTipoFecha) : actual.valorTipoFecha) : null,
       diasSemana: JSON.stringify(diasSemana),
-      asientoPreferidoCodigo: input.asientoPreferidoCodigo ?? actual.asientoPreferidoCodigo,
-      asientoAlternativoCodigo:
-        input.asientoAlternativoCodigo !== undefined
-          ? input.asientoAlternativoCodigo.trim() || null
-          : actual.asientoAlternativoCodigo,
+      asientosCodigos:
+        input.asientosCodigos !== undefined
+          ? JSON.stringify(input.asientosCodigos.map((c) => c.trim()).filter(Boolean))
+          : undefined,
       proximaEjecucion: proximaFecha(diasSemana) ?? undefined,
     },
     include: { biblioteca: true, planta: true },

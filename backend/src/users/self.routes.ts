@@ -3,25 +3,15 @@ import { z } from "zod";
 import { prisma } from "../db";
 import { requireAuth } from "../auth/auth.middleware";
 import { hashPassword, normalizeEmail, verifyPassword } from "../auth/auth.service";
+import { serializeUsuario } from "./serialize";
 
 export const selfRouter = Router();
 selfRouter.use(requireAuth);
 
-function serializeUsuario(usuario: { id: string; nombre: string; email: string | null; username: string | null; rol: string; bibliotecasOcultas: string }) {
-  return {
-    id: usuario.id,
-    nombre: usuario.nombre,
-    email: usuario.email,
-    username: usuario.username,
-    rol: usuario.rol,
-    bibliotecasOcultas: JSON.parse(usuario.bibliotecasOcultas) as string[],
-  };
-}
-
 selfRouter.get("/", async (req, res) => {
   const usuario = await prisma.usuario.findUnique({ where: { id: req.user!.sub } });
   if (!usuario) return res.status(404).json({ error: "Usuario no encontrado" });
-  res.json(serializeUsuario(usuario));
+  res.json(await serializeUsuario(usuario));
 });
 
 const updateSchema = z.object({
@@ -41,7 +31,13 @@ selfRouter.patch("/", async (req, res) => {
   const usuario = await prisma.usuario.findUnique({ where: { id: req.user!.sub } });
   if (!usuario) return res.status(404).json({ error: "Usuario no encontrado" });
 
-  const data: { nombre?: string; email?: string; passwordHash?: string; bibliotecasOcultas?: string } = {};
+  const data: {
+    nombre?: string;
+    email?: string;
+    passwordHash?: string;
+    bibliotecasOcultas?: string;
+    debeCambiarPassword?: boolean;
+  } = {};
   if (nombre) data.nombre = nombre;
   if (email) data.email = normalizeEmail(email);
   if (bibliotecasOcultas) data.bibliotecasOcultas = JSON.stringify(bibliotecasOcultas);
@@ -51,8 +47,9 @@ selfRouter.patch("/", async (req, res) => {
       return res.status(401).json({ error: "La contraseña actual no es correcta" });
     }
     data.passwordHash = await hashPassword(passwordNueva);
+    data.debeCambiarPassword = false; // ya la ha cambiado él mismo
   }
 
   const actualizado = await prisma.usuario.update({ where: { id: usuario.id }, data });
-  res.json(serializeUsuario(actualizado));
+  res.json(await serializeUsuario(actualizado));
 });

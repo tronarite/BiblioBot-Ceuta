@@ -2,16 +2,18 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { DashboardMessageAdmin } from "./DashboardMessage";
 import { ExtraordinarySchedulesAdmin } from "./ExtraordinarySchedules";
+import { SystemStatusAdmin } from "./SystemStatus";
 import { UsersAdmin } from "./Users";
 
 const TABS = [
+  { id: "estado", label: "Estado del sistema" },
   { id: "usuarios", label: "Cuentas BiblioBot" },
   { id: "mensaje", label: "Mensaje del dashboard" },
   { id: "horarios", label: "Horarios extraordinarios" },
 ] as const;
 
 export function AdministracionPage() {
-  const [tab, setTab] = useState<(typeof TABS)[number]["id"]>("usuarios");
+  const [tab, setTab] = useState<(typeof TABS)[number]["id"]>("estado");
 
   return (
     <div className="space-y-6">
@@ -38,6 +40,7 @@ export function AdministracionPage() {
         ))}
       </div>
 
+      {tab === "estado" && <SystemStatusAdmin />}
       {tab === "usuarios" && <UsersAdmin />}
       {tab === "mensaje" && <DashboardMessageAdmin />}
       {tab === "horarios" && <ExtraordinarySchedulesAdmin />}

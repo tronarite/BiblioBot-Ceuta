@@ -12,6 +12,8 @@ import { reservationsRouter } from "./reservations/reservations.routes";
 import { schedulesRouter } from "./schedules/schedules.routes";
 import { adminRouter } from "./admin/admin.routes";
 import { startScheduleEngine } from "./schedules/engine";
+import { startScraperMonitor } from "./monitor/scraper-monitor";
+import { precalentarCache } from "./libraries/libraries.service";
 
 const app = express();
 app.use(cors({ origin: env.corsOrigin, credentials: true }));
@@ -32,4 +34,6 @@ app.use("/api/admin", adminRouter);
 app.listen(env.port, () => {
   console.log(`BiblioBot backend escuchando en el puerto ${env.port}`);
   startScheduleEngine();
+  startScraperMonitor();
+  precalentarCache();
 });

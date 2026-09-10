@@ -8,6 +8,8 @@ export type Usuario = {
   rol: Rol;
   activo?: boolean;
   bibliotecasOcultas: string[];
+  debeCambiarPassword: boolean;
+  patronbaseEstado: "no_vinculada" | "vinculada" | "error";
 };
 
 export type Turno = {
@@ -118,13 +120,31 @@ export type Programacion = {
   valorTipoNumero: number | null;
   valorTipoFecha: string | null;
   diasSemana: string;
-  asientoPreferidoCodigo: string;
-  asientoAlternativoCodigo: string | null;
+  asientosCodigos: string; // JSON array ordenado por preferencia
   estado: "activa" | "pausada" | "finalizada";
   contadorReservasRealizadas: number;
   proximaEjecucion: string | null;
   biblioteca: Biblioteca;
   planta: Planta;
+};
+
+export type EstadoSistema = {
+  scraper: { ok: boolean; detalle: string; comprobadoEn: string } | null;
+  cuentasPatronBase: { no_vinculada: number; vinculada: number; error: number };
+  programacionesActivas: number;
+};
+
+export type AdminProgramacion = Programacion & {
+  usuario: { nombre: string; email: string | null; username: string | null };
+};
+
+export type AdminActividad = {
+  id: string;
+  tipoEvento: string;
+  mensaje: string;
+  fecha: string;
+  usuario: { nombre: string } | null;
+  programacion: { nombre: string | null } | null;
 };
 
 export type ActividadLog = {

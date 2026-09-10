@@ -1,23 +1,13 @@
 import { Router } from "express";
 import { z } from "zod";
-import type { Usuario } from "@prisma/client";
 import { prisma } from "../db";
 import { env } from "../env";
+import { serializeUsuario } from "../users/serialize";
 import { AUTH_COOKIE_NAME, hashPassword, normalizeEmail, signToken, verifyPassword } from "./auth.service";
 import { requireAuth } from "./auth.middleware";
+import { limpiarFallosLogin, minutosBloqueado, registrarFalloLogin } from "./rateLimit";
 
 export const authRouter = Router();
-
-function serializeUsuario(usuario: Usuario) {
-  return {
-    id: usuario.id,
-    nombre: usuario.nombre,
-    email: usuario.email,
-    username: usuario.username,
-    rol: usuario.rol,
-    bibliotecasOcultas: JSON.parse(usuario.bibliotecasOcultas) as string[],
-  };
-}
 
 const cookieOptions = {
   httpOnly: true,
@@ -61,7 +51,7 @@ authRouter.post("/bootstrap-admin", async (req, res) => {
 
   const token = signToken({ sub: usuario.id, rol: "admin" });
   res.cookie(AUTH_COOKIE_NAME, token, cookieOptions);
-  res.status(201).json(serializeUsuario(usuario));
+  res.status(201).json(await serializeUsuario(usuario));
 });
 
 const loginSchema = z.object({
@@ -76,20 +66,24 @@ authRouter.post("/login", async (req, res) => {
   }
   const { identificador, password } = parsed.data;
 
+  const bloqueo = minutosBloqueado(identificador);
+  if (bloqueo > 0) {
+    return res.status(429).json({ error: `Demasiados intentos fallidos. Prueba de nuevo en ${bloqueo} min.` });
+  }
+
   const usuario =
     (await prisma.usuario.findUnique({ where: { email: normalizeEmail(identificador) } })) ??
     (await prisma.usuario.findUnique({ where: { username: identificador } }));
-  if (!usuario || !usuario.activo) {
-    return res.status(401).json({ error: "Credenciales incorrectas" });
-  }
-  const valido = await verifyPassword(password, usuario.passwordHash);
+  const valido = usuario && usuario.activo && (await verifyPassword(password, usuario.passwordHash));
   if (!valido) {
+    registrarFalloLogin(identificador);
     return res.status(401).json({ error: "Credenciales incorrectas" });
   }
 
+  limpiarFallosLogin(identificador);
   const token = signToken({ sub: usuario.id, rol: usuario.rol as "admin" | "usuario" });
   res.cookie(AUTH_COOKIE_NAME, token, cookieOptions);
-  res.json(serializeUsuario(usuario));
+  res.json(await serializeUsuario(usuario));
 });
 
 authRouter.post("/logout", (_req, res) => {
@@ -102,5 +96,5 @@ authRouter.get("/me", requireAuth, async (req, res) => {
   if (!usuario) {
     return res.status(404).json({ error: "Usuario no encontrado" });
   }
-  res.json(serializeUsuario(usuario));
+  res.json(await serializeUsuario(usuario));
 });

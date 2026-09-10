@@ -51,8 +51,15 @@ export function ScheduleWizard({
   const [valorNumero, setValorNumero] = useState(editando?.valorTipoNumero ?? 10);
   const [valorFecha, setValorFecha] = useState(editando?.valorTipoFecha ? editando.valorTipoFecha.slice(0, 10) : "");
   const [dias, setDias] = useState<number[]>(editando ? JSON.parse(editando.diasSemana) : []);
-  const [preferidoCodigo, setPreferidoCodigo] = useState(editando?.asientoPreferidoCodigo ?? "");
-  const [alternativoCodigo, setAlternativoCodigo] = useState(editando?.asientoAlternativoCodigo ?? "");
+  const [asientos, setAsientos] = useState<string[]>(() => {
+    if (!editando) return [""];
+    try {
+      const lista = JSON.parse(editando.asientosCodigos) as string[];
+      return lista.length ? lista : [""];
+    } catch {
+      return [""];
+    }
+  });
   const [planoAmpliado, setPlanoAmpliado] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -61,8 +68,10 @@ export function ScheduleWizard({
     setDias((prev) => (prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d]));
   }
 
+  const asientosLimpios = asientos.map((a) => a.trim()).filter(Boolean);
+
   async function confirmar() {
-    if (!biblioteca || !planta || !preferidoCodigo.trim()) return;
+    if (!biblioteca || !planta || asientosLimpios.length === 0) return;
     setLoading(true);
     setError(null);
     const payload = {
@@ -74,8 +83,7 @@ export function ScheduleWizard({
       valorTipoNumero: tipo === "n_reservas" ? valorNumero : undefined,
       valorTipoFecha: tipo === "hasta_fecha" ? valorFecha : undefined,
       diasSemana: dias,
-      asientoPreferidoCodigo: preferidoCodigo.trim(),
-      asientoAlternativoCodigo: alternativoCodigo.trim() || undefined,
+      asientosCodigos: asientosLimpios,
     };
     try {
       const programacion = editando
@@ -101,8 +109,7 @@ export function ScheduleWizard({
         { label: "Turnos", value: turnos.length ? turnos.map((t) => (t === "manana" ? "Mañana" : "Tarde")).join(" y ") : null, onEdit: () => setStep(2) },
         { label: "Tipo", value: tipo, onEdit: () => setStep(3) },
         { label: "Días", value: dias.length ? ordenarDias(dias).map((d) => DIAS[d].slice(0, 3)).join(", ") : null, onEdit: () => setStep(4) },
-        { label: "Asiento preferido", value: preferidoCodigo || null, onEdit: preferidoCodigo ? () => setStep(5) : undefined },
-        { label: "Asiento alternativo", value: alternativoCodigo || null },
+        { label: "Asientos (por orden)", value: asientosLimpios.length ? asientosLimpios.join(", ") : null, onEdit: asientosLimpios.length ? () => setStep(5) : undefined },
       ]}
     >
       {error && (
@@ -282,41 +289,56 @@ export function ScheduleWizard({
             )}
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-3">
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+              Asientos por orden de preferencia
+            </label>
+            <p className="text-xs text-slate-400 dark:text-slate-500">
+              Se intentan de arriba abajo: si el primero no está libre a la hora de reservar, prueba con el
+              siguiente, y así sucesivamente.
+            </p>
+            {asientos.map((valor, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <span className="w-5 text-right text-xs text-slate-400 dark:text-slate-500">{i + 1}.</span>
+                <input
+                  value={valor}
+                  onChange={(e) => {
+                    const v = e.target.value.replace(/[^\d]/g, "");
+                    setAsientos((prev) => prev.map((x, j) => (j === i ? v : x)));
+                  }}
+                  inputMode="numeric"
+                  placeholder="Ej. 24"
+                  className="w-32 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+                />
+                {asientos.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => setAsientos((prev) => prev.filter((_, j) => j !== i))}
+                    className="text-xs text-red-500 hover:underline dark:text-red-400"
+                  >
+                    Quitar
+                  </button>
+                )}
+              </div>
+            ))}
+            {asientos.length < 10 && (
+              <button
+                type="button"
+                onClick={() => setAsientos((prev) => [...prev, ""])}
+                className="text-xs font-medium text-brand-600 hover:underline dark:text-brand-400"
+              >
+                + Añadir otro asiento
+              </button>
+            )}
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
-                Nº de asiento preferido (Opción 1)
-              </label>
-              <input
-                value={preferidoCodigo}
-                onChange={(e) => setPreferidoCodigo(e.target.value.replace(/[^\d]/g, ""))}
-                inputMode="numeric"
-                placeholder="Ej. 24"
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
-              />
+              <button
+                disabled={asientosLimpios.length === 0}
+                onClick={() => setStep(6)}
+                className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
+              >
+                Continuar
+              </button>
             </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
-                Nº de asiento alternativo (Opción 2, opcional)
-              </label>
-              <input
-                value={alternativoCodigo}
-                onChange={(e) => setAlternativoCodigo(e.target.value.replace(/[^\d]/g, ""))}
-                inputMode="numeric"
-                placeholder="Ej. 25"
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
-              />
-              <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
-                Se usa automáticamente si la Opción 1 no está libre en el momento de reservar.
-              </p>
-            </div>
-            <button
-              disabled={!preferidoCodigo.trim()}
-              onClick={() => setStep(6)}
-              className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
-            >
-              Continuar
-            </button>
           </div>
         </div>
       )}
@@ -340,10 +362,8 @@ export function ScheduleWizard({
               <span className="text-slate-500 dark:text-slate-400">Días:</span> {ordenarDias(dias).map((d) => DIAS[d]).join(", ")}
             </p>
             <p>
-              <span className="text-slate-500 dark:text-slate-400">Preferido:</span> {preferidoCodigo}
-            </p>
-            <p>
-              <span className="text-slate-500 dark:text-slate-400">Alternativo:</span> {alternativoCodigo || "—"}
+              <span className="text-slate-500 dark:text-slate-400">Asientos (por orden):</span>{" "}
+              {asientosLimpios.join(", ")}
             </p>
           </div>
           <button

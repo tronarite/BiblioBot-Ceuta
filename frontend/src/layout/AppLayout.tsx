@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { NavLink, Outlet } from "react-router-dom";
+import { Link, NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
+import { ForcePasswordChange } from "../auth/ForcePasswordChange";
 import { useTheme } from "../theme/ThemeContext";
 
 const tabs = [
@@ -42,6 +43,8 @@ function ThemeToggle() {
 export function AppLayout() {
   const { usuario, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+
+  if (usuario?.debeCambiarPassword) return <ForcePasswordChange />;
 
   const navLinkClass = ({ isActive }: { isActive: boolean }) =>
     `rounded-lg px-3 py-1.5 text-sm font-medium transition ${
@@ -116,6 +119,18 @@ export function AppLayout() {
           </div>
         )}
       </header>
+
+      {usuario?.patronbaseEstado === "error" && (
+        <div className="border-b border-red-200 bg-red-50 px-4 py-2 text-center text-sm text-red-700 dark:border-red-900/60 dark:bg-red-900/20 dark:text-red-300">
+          No hemos podido entrar en tu cuenta de PatronBase con las credenciales guardadas: tus reservas y
+          programaciones no funcionarán.{" "}
+          <Link to="/cuenta" className="font-medium underline">
+            Vuelve a vincularla
+          </Link>
+          .
+        </div>
+      )}
+
       <main className="mx-auto max-w-6xl px-4 py-6">
         <Outlet />
       </main>

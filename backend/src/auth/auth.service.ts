@@ -1,3 +1,4 @@
+import { randomInt } from "crypto";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { env } from "../env";
@@ -9,6 +10,15 @@ export type JwtPayload = {
 
 export async function hashPassword(password: string): Promise<string> {
   return bcrypt.hash(password, 10);
+}
+
+// Contraseña temporal legible para que un admin la comunique al usuario tras un
+// restablecimiento (sin caracteres ambiguos como 0/O, 1/l/I).
+export function generarPasswordTemporal(): string {
+  const alfabeto = "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let out = "";
+  for (let i = 0; i < 10; i++) out += alfabeto[randomInt(alfabeto.length)];
+  return out;
 }
 
 export async function verifyPassword(password: string, hash: string): Promise<boolean> {

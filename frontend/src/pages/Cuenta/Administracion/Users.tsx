@@ -53,6 +53,17 @@ export function UsersAdmin() {
     cargar();
   }
 
+  async function restablecer(u: Usuario) {
+    const { passwordTemporal } = await api.post<{ passwordTemporal: string }>(
+      `/admin/usuarios/${u.id}/reset-password`,
+      {},
+    );
+    window.alert(
+      `Contraseña temporal de ${u.nombre}:\n\n${passwordTemporal}\n\nComunícasela. Se le pedirá que la cambie al entrar.`,
+    );
+    cargar();
+  }
+
   return (
     <div className="space-y-6">
       <div className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-800">
@@ -135,6 +146,12 @@ export function UsersAdmin() {
                 >
                   {u.activo ? "Activo" : "Inactivo"}
                 </span>
+                <button
+                  onClick={() => restablecer(u)}
+                  className="rounded-lg border border-slate-200 px-2 py-1 text-xs hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700"
+                >
+                  Restablecer contraseña
+                </button>
                 <button
                   onClick={() => toggleActivo(u)}
                   className="rounded-lg border border-slate-200 px-2 py-1 text-xs hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700"
