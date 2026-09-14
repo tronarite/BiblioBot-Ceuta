@@ -125,7 +125,17 @@ model Programacion {
   estado                      String    @default("activa")
   contadorReservasRealizadas  Int       @default(0)
   proximaEjecucion            DateTime?
-  ultimoIntentoFecha          String?   // YYYY-MM-DD del último día en que ya se intentó, evita duplicados
+  // YYYY-MM-DD de la fecha objetivo ya reservada con éxito para cada turno (evita
+  // duplicados sin dejar de reintentar durante el resto del día si aún no se ha
+  // conseguido, ver backend/src/schedules/engine.ts).
+  ultimaFechaReservadaManana  String?
+  ultimaFechaReservadaTarde   String?
+  // YYYY-MM-DD de la fecha objetivo por turno para la que ya se avisó en el dashboard
+  // de que, tras comprobar los asientos configurados, ninguno estaba libre. Se avisa
+  // en cuanto ocurre el primer fallo real (no hace falta esperar a que acabe el día) y
+  // solo una vez por fecha, aunque el motor siga reintentando por si se libera algo.
+  ultimaFechaFallidaManana    String?
+  ultimaFechaFallidaTarde     String?
   createdAt                   DateTime  @default(now())
 
   reservas                    Reserva[]

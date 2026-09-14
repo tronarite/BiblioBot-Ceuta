@@ -34,6 +34,28 @@ export function labelMatchesDate(label: string, date: Date): boolean {
   return labelDay === day && labelMonth === date.getMonth();
 }
 
+const NOMBRES_MES = [
+  "enero",
+  "febrero",
+  "marzo",
+  "abril",
+  "mayo",
+  "junio",
+  "julio",
+  "agosto",
+  "septiembre",
+  "octubre",
+  "noviembre",
+  "diciembre",
+];
+
+const NOMBRES_DIA = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
+
+/** "lunes 14 de septiembre" — para mensajes legibles (ej. avisos de reserva fallida). */
+export function formatearFechaEs(date: Date): string {
+  return `${NOMBRES_DIA[date.getDay()]} ${date.getDate()} de ${NOMBRES_MES[date.getMonth()]}`;
+}
+
 export function addDays(date: Date, days: number): Date {
   const copy = new Date(date);
   copy.setDate(copy.getDate() + days);

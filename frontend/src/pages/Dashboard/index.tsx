@@ -6,6 +6,7 @@ import { useAuth } from "../../auth/AuthContext";
 import type { Biblioteca, ConCache, DisponibilidadBiblioteca, HorarioExtraordinario, ReservationsResponse } from "../../api/types";
 import { AvailabilityBadge } from "../../components/AvailabilityBadge";
 import { Dropdown } from "../../components/Dropdown";
+import { FailedReservationsNotice } from "../../components/FailedReservationsNotice";
 import { MiniMarkdown } from "../../components/MiniMarkdown";
 import { BookingWizard } from "./BookingWizard";
 import { FloorPlans } from "./FloorPlans";
@@ -147,6 +148,8 @@ export function DashboardPage() {
               ))}
             </Dropdown>
           )}
+
+          <FailedReservationsNotice />
         </div>
 
         {tab === "general" && (

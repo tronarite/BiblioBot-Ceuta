@@ -4,6 +4,7 @@ import { prisma } from "../db";
 import { requireAdmin, requireAuth } from "../auth/auth.middleware";
 import { generarPasswordTemporal, hashPassword, normalizeEmail } from "../auth/auth.service";
 import { comprobarScraper } from "../monitor/scraper-monitor";
+import { calcularProximaEjecucion } from "../schedules/schedules.service";
 
 export const adminRouter = Router();
 adminRouter.use(requireAuth);
@@ -173,9 +174,17 @@ adminRouter.post("/estado-sistema/comprobar-scraper", requireAdmin, async (_req,
 adminRouter.get("/programaciones", requireAdmin, async (_req, res) => {
   const programaciones = await prisma.programacion.findMany({
     include: { biblioteca: true, planta: true, usuario: { select: { nombre: true, email: true, username: true } } },
-    orderBy: [{ estado: "asc" }, { proximaEjecucion: "asc" }],
+    orderBy: { estado: "asc" },
   });
-  res.json(programaciones);
+  // proximaEjecucion se recalcula en cada lectura (ver calcularProximaEjecucion): un
+  // valor persistido se queda obsoleto en cuanto la programación se pausa o pasa un
+  // día sin éxito, así que tampoco sirve para ordenar directamente en SQL.
+  const conProximaEjecucion = programaciones.map((p) => ({ ...p, proximaEjecucion: calcularProximaEjecucion(p) }));
+  conProximaEjecucion.sort((a, b) => {
+    if (a.estado !== b.estado) return a.estado.localeCompare(b.estado);
+    return (a.proximaEjecucion?.getTime() ?? Infinity) - (b.proximaEjecucion?.getTime() ?? Infinity);
+  });
+  res.json(conProximaEjecucion);
 });
 
 adminRouter.get("/actividad", requireAdmin, async (_req, res) => {
