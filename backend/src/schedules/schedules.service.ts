@@ -1,5 +1,6 @@
 import { prisma } from "../db";
 import { addDays } from "../libraries/dateEs";
+import { leerFechas } from "./fechasProgramacion";
 import { diaTurnoPermitido } from "./rules";
 
 type CrearProgramacionInput = {
@@ -48,7 +49,9 @@ export function calcularProximaEjecucion(p: ProgramacionParaProximaEjecucion): D
 
     const candidataStr = candidata.toISOString().slice(0, 10);
     const pendiente = turnos.some((t) =>
-      t === "manana" ? p.ultimaFechaReservadaManana !== candidataStr : p.ultimaFechaReservadaTarde !== candidataStr,
+      t === "manana"
+        ? !leerFechas(p.ultimaFechaReservadaManana).includes(candidataStr)
+        : !leerFechas(p.ultimaFechaReservadaTarde).includes(candidataStr),
     );
     if (pendiente) {
       candidata.setHours(7, 0, 0, 0);

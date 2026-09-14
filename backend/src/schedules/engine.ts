@@ -7,6 +7,7 @@ import { coincideAsiento, confirmSeats, getCart, getPerformances, getSeatMap, ho
 import { addDays, formatearFechaEs, labelMatchesDate } from "../libraries/dateEs";
 import { invalidarReservas } from "../reservations/reservations.service";
 import { diaTurnoPermitido } from "./rules";
+import { agregarFecha, leerFechas } from "./fechasProgramacion";
 import { calcularProximaEjecucion } from "./schedules.service";
 import type { Prisma } from "@prisma/client";
 
@@ -146,7 +147,7 @@ async function intentarTurno(
 async function procesarTurno(programacion: ProgramacionConRelaciones, turnoTipo: TurnoTipo, fechaObjetivo: Date) {
   const fechaObjetivoStr = fechaObjetivo.toISOString().slice(0, 10);
   const campoExito = CAMPO_EXITO[turnoTipo];
-  if (programacion[campoExito] === fechaObjetivoStr) return; // ya conseguida para esa fecha
+  if (leerFechas(programacion[campoExito]).includes(fechaObjetivoStr)) return; // ya conseguida para esa fecha
 
   // Antes de su hora de apertura PatronBase todavía no muestra el hueco como
   // disponible: esperar en vez de gastar un intento (y un log) en balde. Para
@@ -170,14 +171,19 @@ async function procesarTurno(programacion: ProgramacionConRelaciones, turnoTipo:
     // avisa ya — el motor sigue reintentando por si se libera alguno más tarde, pero el
     // usuario no tiene que esperar al día siguiente para enterarse de que hoy no salió.
     const campoFallo = CAMPO_FALLO[turnoTipo];
-    if (resultado.asientosComprobados && programacion[campoFallo] !== fechaObjetivoStr) {
+    if (resultado.asientosComprobados && !leerFechas(programacion[campoFallo]).includes(fechaObjetivoStr)) {
       await logActivity({
         usuarioId: programacion.usuarioId,
         programacionId: programacion.id,
         tipoEvento: "reserva_fallida",
         mensaje: `No se pudo reservar el ${formatearFechaEs(fechaObjetivo)} (${turnoTipo}) en ${programacion.planta.nombre}: ${resultado.motivo}`,
       });
-      await prisma.programacion.update({ where: { id: programacion.id }, data: { [campoFallo]: fechaObjetivoStr } });
+      const nuevoValor = agregarFecha(programacion[campoFallo], fechaObjetivoStr);
+      await prisma.programacion.update({ where: { id: programacion.id }, data: { [campoFallo]: nuevoValor } });
+      // Se refleja en el objeto en memoria para que, si en este mismo tick también se
+      // procesa la otra fecha candidata (hoy/mañana) del mismo turno, no se pise este
+      // cambio con un valor desactualizado.
+      (programacion as Record<string, unknown>)[campoFallo] = nuevoValor;
     }
     return;
   }
@@ -190,8 +196,9 @@ async function procesarTurno(programacion: ProgramacionConRelaciones, turnoTipo:
   });
 
   const nuevoContador = programacion.contadorReservasRealizadas + 1;
+  const nuevoValorExito = agregarFecha(programacion[campoExito], fechaObjetivoStr);
   const data: Prisma.ProgramacionUpdateInput = {
-    [campoExito]: fechaObjetivoStr,
+    [campoExito]: nuevoValorExito,
     contadorReservasRealizadas: nuevoContador,
   };
   if (programacion.tipo === "n_reservas" && programacion.valorTipoNumero && nuevoContador >= programacion.valorTipoNumero) {
@@ -208,10 +215,11 @@ async function procesarTurno(programacion: ProgramacionConRelaciones, turnoTipo:
     estado: (data.estado as string) ?? programacion.estado,
     diasSemana: programacion.diasSemana,
     turnos: programacion.turnos,
-    ultimaFechaReservadaManana: turnoTipo === "manana" ? fechaObjetivoStr : programacion.ultimaFechaReservadaManana,
-    ultimaFechaReservadaTarde: turnoTipo === "tarde" ? fechaObjetivoStr : programacion.ultimaFechaReservadaTarde,
+    ultimaFechaReservadaManana: turnoTipo === "manana" ? nuevoValorExito : programacion.ultimaFechaReservadaManana,
+    ultimaFechaReservadaTarde: turnoTipo === "tarde" ? nuevoValorExito : programacion.ultimaFechaReservadaTarde,
   });
   await prisma.programacion.update({ where: { id: programacion.id }, data });
+  (programacion as Record<string, unknown>)[campoExito] = nuevoValorExito;
 }
 
 async function procesarProgramacion(programacion: ProgramacionConRelaciones) {
