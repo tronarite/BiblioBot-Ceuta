@@ -1,26 +1,34 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 
+export type Modo = "light" | "dark" | "auto";
 type Theme = "light" | "dark";
-const STORAGE_KEY = "bibliobot-theme";
-// Marca aparte de si el tema guardado viene de una elección manual (botón) o no.
-// Necesaria porque versiones anteriores escribían STORAGE_KEY en cada carga aunque el
-// usuario no hubiera tocado nada — sin esta marca, cualquiera que ya hubiera abierto
-// la app antes se quedaría "atascado" en modo manual para siempre y nunca seguiría al
-// sistema en vivo.
-const MANUAL_KEY = "bibliobot-theme-manual";
+
+const STORAGE_KEY = "bibliobot-theme-modo";
+// Claves de una versión anterior (sin botón de "auto" explícito): se migran una vez y
+// ya no se vuelven a escribir.
+const LEGACY_THEME_KEY = "bibliobot-theme";
+const LEGACY_MANUAL_KEY = "bibliobot-theme-manual";
 
 function prefiereOscuro(): boolean {
   return window.matchMedia("(prefers-color-scheme: dark)").matches;
 }
 
-function esManual(): boolean {
-  return localStorage.getItem(MANUAL_KEY) === "1";
+function resolver(modo: Modo): Theme {
+  return modo === "auto" ? (prefiereOscuro() ? "dark" : "light") : modo;
 }
 
-function getInitialTheme(): Theme {
+function getInitialModo(): Modo {
   const stored = localStorage.getItem(STORAGE_KEY);
-  if (esManual() && (stored === "light" || stored === "dark")) return stored;
-  return prefiereOscuro() ? "dark" : "light";
+  if (stored === "light" || stored === "dark" || stored === "auto") return stored;
+
+  // Migración desde el sistema anterior: si el usuario ya había elegido tema a mano,
+  // se respeta esa elección; si no, pasa a "auto" (antes era el comportamiento
+  // implícito por defecto, ahora es una opción explícita).
+  const legacyManual = localStorage.getItem(LEGACY_MANUAL_KEY) === "1";
+  const legacyTheme = localStorage.getItem(LEGACY_THEME_KEY);
+  if (legacyManual && (legacyTheme === "light" || legacyTheme === "dark")) return legacyTheme;
+
+  return "auto";
 }
 
 function applyTheme(theme: Theme) {
@@ -28,42 +36,42 @@ function applyTheme(theme: Theme) {
 }
 
 type ThemeState = {
+  modo: Modo;
   theme: Theme;
-  toggle: () => void;
+  setModo: (modo: Modo) => void;
 };
 
 const ThemeContext = createContext<ThemeState | null>(null);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<Theme>(getInitialTheme);
-  // Si el usuario ya eligió un tema a mano, los cambios del sistema dejan de pisarlo.
-  const elegidoAMano = useRef(esManual());
+  const [modo, setModoState] = useState<Modo>(getInitialModo);
+  const [theme, setTheme] = useState<Theme>(() => resolver(modo));
 
   useEffect(() => {
     applyTheme(theme);
   }, [theme]);
 
   useEffect(() => {
+    setTheme(resolver(modo));
+    if (modo !== "auto") return;
+
+    // En modo "auto" el tema sigue al sistema en vivo, incluido un cambio de este
+    // mientras la pestaña sigue abierta (ej. el modo oscuro automático del móvil al
+    // anochecer).
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
     function onChange(e: MediaQueryListEvent) {
-      if (elegidoAMano.current) return;
       setTheme(e.matches ? "dark" : "light");
     }
     mq.addEventListener("change", onChange);
     return () => mq.removeEventListener("change", onChange);
-  }, []);
+  }, [modo]);
 
-  const toggle = useCallback(() => {
-    setTheme((prev) => {
-      const next = prev === "dark" ? "light" : "dark";
-      elegidoAMano.current = true;
-      localStorage.setItem(STORAGE_KEY, next);
-      localStorage.setItem(MANUAL_KEY, "1");
-      return next;
-    });
-  }, []);
+  function setModo(nuevo: Modo) {
+    setModoState(nuevo);
+    localStorage.setItem(STORAGE_KEY, nuevo);
+  }
 
-  return <ThemeContext.Provider value={{ theme, toggle }}>{children}</ThemeContext.Provider>;
+  return <ThemeContext.Provider value={{ modo, theme, setModo }}>{children}</ThemeContext.Provider>;
 }
 
 export function useTheme() {
