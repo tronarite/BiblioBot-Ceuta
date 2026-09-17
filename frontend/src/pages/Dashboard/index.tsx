@@ -35,6 +35,7 @@ export function DashboardPage() {
   const [horarios, setHorarios] = useState<HorarioExtraordinario[]>([]);
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [errorReservas, setErrorReservas] = useState<string | null>(null);
 
   function aplicarReservas(res: ConCache<ReservationsResponse>) {
     setReservas(res.items);
@@ -54,17 +55,25 @@ export function DashboardPage() {
     }
   }
 
-  async function cargar() {
-    const [libs, reservasRes, horariosRes, mensajeRes] = await Promise.all([
-      api.get<Biblioteca[]>("/libraries"),
-      api.get<ConCache<ReservationsResponse>>("/reservations"),
-      api.get<HorarioExtraordinario[]>("/admin/horarios-extraordinarios"),
-      api.get<{ texto: string } | null>("/admin/dashboard-message"),
-    ]);
-    setBibliotecas(libs);
-    aplicarReservas(reservasRes);
-    setHorarios(horariosRes);
-    setMensaje(mensajeRes?.texto ?? null);
+  function cargar() {
+    // Peticiones independientes en vez de un único Promise.all: así, si consultar las
+    // reservas falla (p. ej. un fallo puntual al iniciar sesión en PatronBase), el resto
+    // del dashboard (bibliotecas, avisos, ocupación) se sigue cargando igualmente en vez
+    // de quedarse todo en blanco sin explicación.
+    api.get<Biblioteca[]>("/libraries").then(setBibliotecas);
+    api
+      .get<ConCache<ReservationsResponse>>("/reservations")
+      .then((res) => {
+        setErrorReservas(null);
+        aplicarReservas(res);
+      })
+      .catch((err) => {
+        setErrorReservas(err instanceof Error ? err.message : "No se pudieron consultar tus reservas");
+      });
+    api.get<HorarioExtraordinario[]>("/admin/horarios-extraordinarios").then(setHorarios);
+    api
+      .get<{ texto: string } | null>("/admin/dashboard-message")
+      .then((mensajeRes) => setMensaje(mensajeRes?.texto ?? null));
     cargarDisponibilidad();
   }
 
@@ -169,6 +178,11 @@ export function DashboardPage() {
               ese mismo orden, así lo primero que se ve son las reservas actuales y luego
               el estado de las bibliotecas. */}
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+            {errorReservas && (
+              <p className="lg:col-span-2 rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-900/20 dark:text-red-300">
+                No se han podido consultar tus reservas en PatronBase: {errorReservas}
+              </p>
+            )}
             <ReservationsList titulo="En curso" reservas={reservas.enCurso} vacio="No tienes reservas en curso" />
             <ReservationsList titulo="Próximas" reservas={reservas.proximas} vacio="No tienes próximas reservas" />
 

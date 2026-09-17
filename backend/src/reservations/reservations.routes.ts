@@ -16,6 +16,7 @@ reservationsRouter.get("/", async (req, res) => {
     const { datos, actualizadoEn, actualizando } = await listReservationsCacheada(req.user!.sub);
     res.json({ items: datos, actualizadoEn, actualizando });
   } catch (err) {
+    console.error("[reservations] fallo al consultar reservas:", err);
     res.status(502).json({ error: (err as Error).message });
   }
 });
