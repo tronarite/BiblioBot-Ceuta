@@ -46,30 +46,20 @@ const OPCIONES: { valor: Modo; label: string; icono: JSX.Element }[] = [
 
 function ThemeToggle() {
   const { modo, setModo } = useTheme();
+  const indiceActual = OPCIONES.findIndex((o) => o.valor === modo);
+  const actual = OPCIONES[indiceActual];
+  const siguiente = OPCIONES[(indiceActual + 1) % OPCIONES.length];
+
   return (
-    <div
-      role="group"
-      aria-label="Tema de la aplicación"
-      className="flex items-center gap-0.5 rounded-lg bg-slate-100 p-0.5 dark:bg-slate-700"
+    <button
+      type="button"
+      onClick={() => setModo(siguiente.valor)}
+      aria-label={`Tema: ${actual.label}. Pulsa para cambiar a ${siguiente.label.toLowerCase()}`}
+      title={`Tema: ${actual.label} (pulsa para cambiar)`}
+      className="rounded-lg bg-slate-100 p-1.5 text-slate-600 transition hover:text-slate-800 dark:bg-slate-700 dark:text-slate-300 dark:hover:text-slate-100"
     >
-      {OPCIONES.map((opcion) => (
-        <button
-          key={opcion.valor}
-          type="button"
-          onClick={() => setModo(opcion.valor)}
-          aria-label={opcion.label}
-          aria-pressed={modo === opcion.valor}
-          title={opcion.label}
-          className={`rounded-md p-1.5 transition ${
-            modo === opcion.valor
-              ? "bg-white text-brand-700 shadow-sm dark:bg-slate-900 dark:text-brand-300"
-              : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
-          }`}
-        >
-          {opcion.icono}
-        </button>
-      ))}
-    </div>
+      {actual.icono}
+    </button>
   );
 }
 
