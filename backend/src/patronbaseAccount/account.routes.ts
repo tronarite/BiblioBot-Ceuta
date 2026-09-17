@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { requireAuth } from "../auth/auth.middleware";
-import { getStatus, linkAccount, unlinkAccount } from "./account.service";
+import { getStatus, linkAccount, retryLink, unlinkAccount } from "./account.service";
 
 export const patronbaseAccountRouter = Router();
 patronbaseAccountRouter.use(requireAuth);
@@ -31,4 +31,12 @@ patronbaseAccountRouter.post("/link", async (req, res) => {
 patronbaseAccountRouter.delete("/link", async (req, res) => {
   await unlinkAccount(req.user!.sub);
   res.status(204).send();
+});
+
+patronbaseAccountRouter.post("/retry", async (req, res) => {
+  const result = await retryLink(req.user!.sub);
+  if (!result.ok) {
+    return res.status(422).json({ error: result.error });
+  }
+  res.json({ estadoVinculacion: "vinculada" });
 });

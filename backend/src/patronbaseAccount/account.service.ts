@@ -44,6 +44,32 @@ export async function unlinkAccount(usuarioId: string) {
   await prisma.cuentaPatronBase.deleteMany({ where: { usuarioId } });
 }
 
+/**
+ * Reintenta el login con las credenciales ya guardadas (sin que el usuario tenga que
+ * volver a escribirlas), para el caso típico en que el fallo fue algo puntual del
+ * scraper o de PatronBase y no un cambio real de contraseña.
+ */
+export async function retryLink(usuarioId: string) {
+  const cuenta = await prisma.cuentaPatronBase.findUnique({ where: { usuarioId } });
+  if (!cuenta) {
+    return { ok: false as const, error: "No hay ninguna cuenta PatronBase vinculada" };
+  }
+
+  const password = decryptSecret(cuenta.credencialesCifrado);
+  const session = new PatronBaseSession();
+  const ok = await login(session, cuenta.patronbaseEmail, password);
+  if (!ok) {
+    await prisma.cuentaPatronBase.update({ where: { usuarioId }, data: { estadoVinculacion: "error" } });
+    return { ok: false as const, error: "Sigue sin poder iniciar sesión en PatronBase con las credenciales guardadas" };
+  }
+
+  await prisma.cuentaPatronBase.update({
+    where: { usuarioId },
+    data: { estadoVinculacion: "vinculada", ultimaSincronizacion: new Date() },
+  });
+  return { ok: true as const };
+}
+
 export async function getStatus(usuarioId: string) {
   const cuenta = await prisma.cuentaPatronBase.findUnique({ where: { usuarioId } });
   if (!cuenta) return { estadoVinculacion: "no_vinculada" as const, patronbaseEmail: null };
