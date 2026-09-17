@@ -238,38 +238,64 @@ export function BookingWizard({
                         {turnosDeTipo.map(({ turno: t, planta: p }) => {
                           const estado = estadoTurnos?.find((e) => e.turnoId === t.id);
                           const deshabilitado = estado ? !estado.disponibleAhora : false;
+                          // La sala sigue abierta para reservar (puede tener hueco mañana), pero hoy no
+                          // queda ni un asiento: se muestra igual de apagada que las cerradas, para que
+                          // se note de un vistazo, pero sin bloquear el clic (mañana sí puede haber sitio).
+                          const completoHoy = !deshabilitado && estado?.plazasLibresHoy === 0;
                           const enCesta = cesta.filter((c) => c.turno.id === t.id).length;
                           return (
                             <button
                               key={t.id}
                               type="button"
                               disabled={deshabilitado}
-                              title={deshabilitado ? (estado?.mensaje ?? undefined) : undefined}
+                              title={deshabilitado ? (estado?.mensaje ?? undefined) : completoHoy ? "Hoy no queda ningún asiento libre, pero puedes mirar otro día" : undefined}
                               onClick={() => elegirTurno(t)}
                               className={`rounded-xl border p-3 text-left text-sm transition ${
                                 deshabilitado
-                                  ? "cursor-not-allowed border-slate-100 bg-slate-50 text-slate-400 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-500"
-                                  : `hover:border-brand-400 dark:border-slate-700 dark:hover:border-brand-500 ${
-                                      enCesta > 0 ? "border-brand-500 bg-brand-50 dark:bg-brand-900/30" : "border-slate-200 dark:bg-slate-800"
-                                    }`
+                                  ? "cursor-not-allowed border-slate-100 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/60"
+                                  : completoHoy
+                                    ? "border-rose-100 bg-rose-50/60 hover:border-rose-300 dark:border-rose-900/40 dark:bg-rose-950/20 dark:hover:border-rose-700"
+                                    : `hover:border-brand-400 dark:border-slate-700 dark:hover:border-brand-500 ${
+                                        enCesta > 0 ? "border-brand-500 bg-brand-50 dark:bg-brand-900/30" : "border-slate-200 dark:bg-slate-800"
+                                      }`
                               }`}
                             >
                               <div className="flex items-center justify-between gap-2">
-                                <p className="font-medium dark:text-slate-100">{p.nombre}</p>
+                                <p className={`font-medium ${deshabilitado ? "text-slate-500 dark:text-slate-400" : "dark:text-slate-100"}`}>
+                                  {p.nombre}
+                                </p>
                                 {enCesta > 0 && (
                                   <span className="rounded-full bg-brand-600 px-2 py-0.5 text-xs font-medium text-white">
                                     En la cesta{enCesta > 1 ? ` ×${enCesta}` : ""}
                                   </span>
                                 )}
+                                {completoHoy && (
+                                  <span className="shrink-0 rounded-full bg-rose-100 px-2 py-0.5 text-xs font-medium text-rose-700 dark:bg-rose-900/40 dark:text-rose-300">
+                                    Completo hoy
+                                  </span>
+                                )}
                               </div>
                               {deshabilitado ? (
-                                <p className="mt-1 text-xs">{estado?.mensaje ?? "No disponible por ahora"}</p>
+                                <p className="mt-1 text-sm leading-snug text-slate-500 dark:text-slate-400">
+                                  {estado?.mensaje ?? "No disponible por ahora"}
+                                </p>
+                              ) : completoHoy ? (
+                                <p className="mt-1 text-sm leading-snug text-rose-600/90 dark:text-rose-400/90">
+                                  Sin asientos libres hoy · prueba otro día
+                                </p>
                               ) : (
                                 <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{t.horario}</p>
                               )}
-                              {!deshabilitado && estado?.pocasPlazasHoy && (
+                              {!deshabilitado && !completoHoy && estado?.avisoPlazasHoy === "criticas" && (
+                                <p className="mt-1 text-xs font-medium text-red-600 dark:text-red-400">
+                                  {estado.plazasLibresHoy === 1
+                                    ? "Queda 1 plaza hoy"
+                                    : `Quedan ${estado.plazasLibresHoy} plazas hoy`}
+                                </p>
+                              )}
+                              {!deshabilitado && !completoHoy && estado?.avisoPlazasHoy === "pocas" && (
                                 <p className="mt-1 text-xs font-medium text-amber-600 dark:text-amber-400">
-                                  Quedan pocas plazas hoy ({estado.plazasLibresHoy})
+                                  Pocas plazas libres hoy
                                 </p>
                               )}
                             </button>
@@ -314,11 +340,15 @@ export function BookingWizard({
                 className={`rounded-xl border p-3 text-left text-sm transition ${
                   p.available
                     ? "border-slate-200 hover:border-brand-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-brand-500"
-                    : "cursor-not-allowed border-slate-100 text-slate-300 dark:border-slate-800 dark:text-slate-600"
+                    : "cursor-not-allowed border-slate-100 bg-slate-50 dark:border-slate-800 dark:bg-slate-900/40"
                 }`}
               >
-                <p className="font-medium">{p.label.split("No estará")[0]}</p>
-                {!p.available && p.availableFromText && <p className="mt-1 text-xs">{p.availableFromText}</p>}
+                <p className={`font-medium ${p.available ? "" : "text-slate-500 dark:text-slate-400"}`}>
+                  {p.label.split("No estará")[0]}
+                </p>
+                {!p.available && p.availableFromText && (
+                  <p className="mt-1 text-sm leading-snug text-slate-500 dark:text-slate-400">{p.availableFromText}</p>
+                )}
               </button>
             ))}
           </div>

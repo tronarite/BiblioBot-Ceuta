@@ -113,10 +113,23 @@ export type EstadoTurno = {
   disponibleAhora: boolean;
   mensaje: string | null;
   plazasLibresHoy: number | null;
-  pocasPlazasHoy: boolean;
+  avisoPlazasHoy: "pocas" | "criticas" | null;
 };
 
-const UMBRAL_POCAS_PLAZAS = 5;
+// Nº de plazas libres por debajo del cual el aviso pasa a ser urgente (con el número
+// exacto), sea cual sea el aforo de la sala.
+const UMBRAL_CRITICO = 3;
+// Por encima del umbral crítico, "pocas plazas" se calcula como un porcentaje del aforo
+// total de la sala (una sala de 40 sitios y una de 10 no deberían avisar con el mismo
+// número absoluto de plazas libres).
+const PROPORCION_POCAS = 0.2;
+
+function calcularAvisoPlazas(libres: number, total: number): "pocas" | "criticas" | null {
+  if (libres <= 0) return null;
+  if (libres <= UMBRAL_CRITICO) return "criticas";
+  const umbralPocas = Math.max(UMBRAL_CRITICO + 1, Math.round(total * PROPORCION_POCAS));
+  return libres <= umbralPocas ? "pocas" : null;
+}
 
 /**
  * Para cada turno, indica si hay al menos un día reservable ahora mismo. Cuando no lo
@@ -124,8 +137,9 @@ const UMBRAL_POCAS_PLAZAS = 5;
  * PatronBase no ofrece ningún día en el selector: solo un aviso de cuándo se abrirá.
  * Se usa para deshabilitar esas opciones en el asistente de reserva y mostrar ese aviso.
  *
- * También calcula, solo para el día de hoy, cuántas plazas quedan libres: si son pocas
- * (<= UMBRAL_POCAS_PLAZAS) se marca pocasPlazasHoy para avisar al elegir turno.
+ * También calcula, solo para el día de hoy (nunca mañana: sería un dato menos fiable y
+ * confundiría al elegir turno), cuántas plazas quedan libres y si conviene avisar de
+ * ello — ver calcularAvisoPlazas.
  */
 const TTL_TURNOS_ESTADO_MS = 60 * 1000; // 1 min: se usa mientras se elige turno para reservar
 
@@ -148,11 +162,13 @@ async function getEstadoTurnosEnVivo(): Promise<EstadoTurno[]> {
         const hayAlguno = options.some((o) => o.available);
 
         let plazasLibresHoy: number | null = null;
+        let avisoPlazasHoy: "pocas" | "criticas" | null = null;
         const hoyOpt = options.find((o) => labelMatchesDate(o.label, hoy));
         if (hoyOpt?.available) {
           try {
             const { seats } = await getSeatMap(session, turno.patronbaseProdId, hoyOpt.perfId);
             plazasLibresHoy = seats.filter((s) => s.state === "available").length;
+            avisoPlazasHoy = calcularAvisoPlazas(plazasLibresHoy, seats.length);
           } catch {
             plazasLibresHoy = null;
           }
@@ -163,7 +179,7 @@ async function getEstadoTurnosEnVivo(): Promise<EstadoTurno[]> {
           disponibleAhora: hayAlguno,
           mensaje: hayAlguno ? null : (noDisponibleTexto ?? options.find((o) => o.availableFromText)?.availableFromText ?? null),
           plazasLibresHoy,
-          pocasPlazasHoy: plazasLibresHoy !== null && plazasLibresHoy > 0 && plazasLibresHoy <= UMBRAL_POCAS_PLAZAS,
+          avisoPlazasHoy,
         };
       } catch {
         return {
@@ -171,7 +187,7 @@ async function getEstadoTurnosEnVivo(): Promise<EstadoTurno[]> {
           disponibleAhora: false,
           mensaje: "No se pudo consultar la disponibilidad",
           plazasLibresHoy: null,
-          pocasPlazasHoy: false,
+          avisoPlazasHoy: null,
         };
       }
     }),
