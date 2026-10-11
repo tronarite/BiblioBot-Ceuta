@@ -1,10 +1,11 @@
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../../api/client";
 import { guardarLocal, leerLocal } from "../../api/localCache";
 import { useAuth } from "../../auth/AuthContext";
 import type { Biblioteca, ConCache, DisponibilidadBiblioteca, HorarioExtraordinario, ReservationsResponse } from "../../api/types";
 import { AvailabilityBadge } from "../../components/AvailabilityBadge";
+import { DataFreshness, type EstadoFrescura } from "../../components/DataFreshness";
 import { Dropdown } from "../../components/Dropdown";
 import { FailedReservationsNotice } from "../../components/FailedReservationsNotice";
 import { MiniMarkdown } from "../../components/MiniMarkdown";
@@ -19,6 +20,20 @@ const TABS = [
 
 const VACIO: ReservationsResponse = { enCurso: [], proximas: [] };
 const claveReservas = (usuarioId: string | undefined) => `dash:reservas:${usuarioId ?? "anon"}`;
+
+// Mientras el servidor responda con una copia en caché que está refrescando en segundo
+// plano ("actualizando"), se vuelve a preguntar cada SONDEO_MS hasta SONDEO_MAX veces
+// (~30 s, de sobra para el scraping completo de PatronBase).
+const SONDEO_MS = 3000;
+const SONDEO_MAX = 10;
+// A partir de esta antigüedad los datos se marcan como desactualizados aunque la última
+// consulta fuera bien (p. ej. si la pestaña se queda abierta); coincide con el TTL de la
+// caché de disponibilidad del backend.
+const ANTIGUEDAD_MAX_MS = 3 * 60 * 1000;
+
+type Fuente = "reservas" | "disponibilidad";
+type EstadoFuente = { cargando: boolean; error: boolean; actualizadoEn: string | null };
+const ESTADO_INICIAL: EstadoFuente = { cargando: true, error: false, actualizadoEn: null };
 
 export function DashboardPage() {
   const { usuario } = useAuth();
@@ -37,22 +52,82 @@ export function DashboardPage() {
   const [wizardOpen, setWizardOpen] = useState(false);
   const [errorReservas, setErrorReservas] = useState<string | null>(null);
 
-  function aplicarReservas(res: ConCache<ReservationsResponse>) {
-    setReservas(res.items);
-    guardarLocal(claveReservas(usuario?.id), res.items);
-    if (res.actualizando) {
-      // El servidor sirvió una copia en caché algo vieja y la está refrescando ahora
-      // mismo; se vuelve a pedir una vez para reflejar el cambio sin recargar a mano.
-      setTimeout(() => {
-        api
-          .get<ConCache<ReservationsResponse>>("/reservations")
-          .then((r) => {
-            setReservas(r.items);
-            guardarLocal(claveReservas(usuario?.id), r.items);
-          })
-          .catch(() => {});
-      }, 5000);
-    }
+  const [fuentes, setFuentes] = useState<Record<Fuente, EstadoFuente>>({
+    reservas: ESTADO_INICIAL,
+    disponibilidad: ESTADO_INICIAL,
+  });
+  const [ahora, setAhora] = useState(() => Date.now());
+  // Cada refresco incrementa la generación: los sondeos de una carga anterior que sigan
+  // en marcha se descartan en vez de pisar el estado de la nueva.
+  const generacion = useRef(0);
+
+  useEffect(() => {
+    const t = setInterval(() => setAhora(Date.now()), 30_000);
+    return () => {
+      clearInterval(t);
+      generacion.current++;
+    };
+  }, []);
+
+  function marcar(fuente: Fuente, cambios: Partial<EstadoFuente>) {
+    setFuentes((prev) => ({ ...prev, [fuente]: { ...prev[fuente], ...cambios } }));
+  }
+
+  function consultar<T>(
+    fuente: Fuente,
+    url: string,
+    aplicar: (items: T) => void,
+    alFallar: (err: unknown) => void,
+    gen: number,
+    intento = 0,
+  ) {
+    api
+      .get<ConCache<T>>(url)
+      .then((res) => {
+        if (gen !== generacion.current) return;
+        aplicar(res.items);
+        if (res.actualizando && intento < SONDEO_MAX) {
+          marcar(fuente, { cargando: true, error: false, actualizadoEn: res.actualizadoEn });
+          setTimeout(() => consultar(fuente, url, aplicar, alFallar, gen, intento + 1), SONDEO_MS);
+          return;
+        }
+        // Si tras todos los reintentos el servidor sigue sin datos nuevos, se muestra lo
+        // que hay pero marcado como desactualizado.
+        marcar(fuente, { cargando: false, error: res.actualizando, actualizadoEn: res.actualizadoEn });
+      })
+      .catch((err) => {
+        if (gen !== generacion.current) return;
+        marcar(fuente, { cargando: false, error: true });
+        alFallar(err);
+      });
+  }
+
+  function refrescarDatos() {
+    const gen = ++generacion.current;
+    setAhora(Date.now());
+    marcar("reservas", { cargando: true, error: false });
+    marcar("disponibilidad", { cargando: true, error: false });
+    consultar<ReservationsResponse>(
+      "reservas",
+      "/reservations",
+      (items) => {
+        setErrorReservas(null);
+        setReservas(items);
+        guardarLocal(claveReservas(usuario?.id), items);
+      },
+      (err) => setErrorReservas(err instanceof Error ? err.message : "No se pudieron consultar tus reservas"),
+      gen,
+    );
+    consultar<DisponibilidadBiblioteca[]>(
+      "disponibilidad",
+      "/libraries/disponibilidad",
+      (items) => {
+        setDisponibilidad(items);
+        guardarLocal("dash:disponibilidad", items);
+      },
+      () => setDisponibilidad((prev) => prev ?? []),
+      gen,
+    );
   }
 
   function cargar() {
@@ -61,44 +136,11 @@ export function DashboardPage() {
     // del dashboard (bibliotecas, avisos, ocupación) se sigue cargando igualmente en vez
     // de quedarse todo en blanco sin explicación.
     api.get<Biblioteca[]>("/libraries").then(setBibliotecas);
-    api
-      .get<ConCache<ReservationsResponse>>("/reservations")
-      .then((res) => {
-        setErrorReservas(null);
-        aplicarReservas(res);
-      })
-      .catch((err) => {
-        setErrorReservas(err instanceof Error ? err.message : "No se pudieron consultar tus reservas");
-      });
     api.get<HorarioExtraordinario[]>("/admin/horarios-extraordinarios").then(setHorarios);
     api
       .get<{ texto: string } | null>("/admin/dashboard-message")
       .then((mensajeRes) => setMensaje(mensajeRes?.texto ?? null));
-    cargarDisponibilidad();
-  }
-
-  function cargarDisponibilidad() {
-    api
-      .get<ConCache<DisponibilidadBiblioteca[]>>("/libraries/disponibilidad")
-      .then((res) => {
-        setDisponibilidad(res.items);
-        guardarLocal("dash:disponibilidad", res.items);
-        if (res.actualizando) {
-          // Se sirvió una versión en caché algo desactualizada mientras el servidor la
-          // refresca en segundo plano; se vuelve a pedir una vez para reflejar el cambio
-          // (si lo hay) sin que haga falta recargar la página a mano.
-          setTimeout(() => {
-            api
-              .get<ConCache<DisponibilidadBiblioteca[]>>("/libraries/disponibilidad")
-              .then((r) => {
-                setDisponibilidad(r.items);
-                guardarLocal("dash:disponibilidad", r.items);
-              })
-              .catch(() => {});
-          }, 4000);
-        }
-      })
-      .catch(() => setDisponibilidad((prev) => prev ?? []));
+    refrescarDatos();
   }
 
   useEffect(() => {
@@ -109,10 +151,29 @@ export function DashboardPage() {
   const disponibilidadVisible = (disponibilidad ?? []).filter((d) => !ocultas.includes(d.bibliotecaId));
   const bibliotecasVisibles = bibliotecas.filter((b) => !ocultas.includes(b.id));
 
+  // Estado conjunto de reservas + ocupación; la fecha mostrada es la del dato más antiguo.
+  const fechas = [fuentes.reservas.actualizadoEn, fuentes.disponibilidad.actualizadoEn].filter(
+    (f): f is string => f !== null,
+  );
+  const masAntiguo = fechas.length === 2 ? (fechas[0] < fechas[1] ? fechas[0] : fechas[1]) : null;
+  const estadoDatos: EstadoFrescura =
+    fuentes.reservas.cargando || fuentes.disponibilidad.cargando
+      ? "actualizando"
+      : fuentes.reservas.error ||
+          fuentes.disponibilidad.error ||
+          !masAntiguo ||
+          ahora - new Date(masAntiguo).getTime() > ANTIGUEDAD_MAX_MS
+        ? "desactualizado"
+        : "actualizado";
+
   return (
     <Fragment>
     <div className="space-y-6">
-      <h1 className="text-xl font-semibold text-slate-800 dark:text-slate-100">Dashboard</h1>
+      <div className="flex items-center gap-1.5">
+        <h1 className="text-xl font-semibold text-slate-800 dark:text-slate-100">Dashboard</h1>
+        {/* Estado de los datos (reservas + ocupación). */}
+        <DataFreshness estado={estadoDatos} actualizadoEn={masAntiguo} ahora={ahora} onRefrescar={refrescarDatos} />
+      </div>
 
       {/* Todos los controles de la página en una sola franja: pestañas, avisos (como
           desplegables compactos en vez de recuadros siempre abiertos) y el botón de
@@ -135,6 +196,7 @@ export function DashboardPage() {
               </button>
             ))}
           </div>
+
 
           {mensaje && (
             <Dropdown
