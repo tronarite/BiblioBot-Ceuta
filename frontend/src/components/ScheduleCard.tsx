@@ -135,14 +135,12 @@ export function ScheduleCard({
         >
           Editar
         </button>
-        {programacion.estado !== "finalizada" && (
-          <button
-            onClick={onTogglePause}
-            className="rounded-lg border border-slate-200 px-3 py-1.5 font-medium hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700"
-          >
-            {programacion.estado === "activa" ? "Pausar" : "Reanudar"}
-          </button>
-        )}
+        <button
+          onClick={onTogglePause}
+          className="rounded-lg border border-slate-200 px-3 py-1.5 font-medium hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700"
+        >
+          {programacion.estado === "activa" ? "Pausar" : "Reanudar"}
+        </button>
         <button
           onClick={onDelete}
           className="rounded-lg border border-red-200 px-3 py-1.5 font-medium text-red-600 hover:bg-red-50 dark:border-red-900/60 dark:text-red-400 dark:hover:bg-red-900/20"

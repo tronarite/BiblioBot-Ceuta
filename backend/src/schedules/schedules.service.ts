@@ -114,10 +114,20 @@ export async function setEstado(id: string, usuarioId: string, estado: "activa" 
   const actual = await prisma.programacion.findFirst({ where: { id, usuarioId } });
   if (!actual) return { count: 0 };
 
+  // Reanudar una programación finalizada arranca un ciclo nuevo con la misma
+  // configuración: en "n_reservas" el contador vuelve a 0 (si no, el motor la daría por
+  // terminada en la siguiente reserva). En "hasta_fecha" no hay forma de deducir una
+  // nueva fecha límite, así que si la actual ya pasó hay que editarla primero.
+  const reanudandoFinalizada = actual.estado === "finalizada" && estado === "activa";
+  if (reanudandoFinalizada && actual.tipo === "hasta_fecha" && actual.valorTipoFecha && new Date() >= actual.valorTipoFecha) {
+    throw new Error("La fecha límite de esta programación ya ha pasado: edítala para ponerle una nueva antes de reanudarla");
+  }
+
   return prisma.programacion.updateMany({
     where: { id, usuarioId },
     data: {
       estado,
+      contadorReservasRealizadas: reanudandoFinalizada && actual.tipo === "n_reservas" ? 0 : undefined,
       // Pausada no tiene "próxima ejecución" (null explícito); al reactivar se recalcula.
       proximaEjecucion: calcularProximaEjecucion({ ...actual, estado }),
     },

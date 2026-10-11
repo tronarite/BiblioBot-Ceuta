@@ -10,6 +10,7 @@ export function ProgramacionesPage() {
   const [programaciones, setProgramaciones] = useState<Programacion[]>([]);
   const [bibliotecas, setBibliotecas] = useState<Biblioteca[]>([]);
   const [wizardTarget, setWizardTarget] = useState<"nueva" | Programacion | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const ocultas = usuario?.bibliotecasOcultas ?? [];
   const bibliotecasVisibles = bibliotecas.filter((b) => !ocultas.includes(b.id));
@@ -28,7 +29,12 @@ export function ProgramacionesPage() {
   }, []);
 
   async function togglePause(p: Programacion) {
-    await api.patch(`/schedules/${p.id}`, { estado: p.estado === "activa" ? "pausada" : "activa" });
+    setError(null);
+    try {
+      await api.patch(`/schedules/${p.id}`, { estado: p.estado === "activa" ? "pausada" : "activa" });
+    } catch (err) {
+      setError((err as Error).message);
+    }
     cargar();
   }
 
@@ -54,6 +60,12 @@ export function ProgramacionesPage() {
           Nueva programación
         </button>
       </div>
+
+      {error && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-900/20 dark:text-red-300">
+          {error}
+        </div>
+      )}
 
       {programaciones.length === 0 ? (
         <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-400 dark:border-slate-600 dark:text-slate-500">
