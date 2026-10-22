@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useRef, useState } from "react";
+import { CurrentDateTime } from "../../components/CurrentDateTime";
 import { NextAttempts } from "../../components/NextAttempts";
 import { Link } from "react-router-dom";
 import { api } from "../../api/client";
@@ -170,10 +171,13 @@ export function DashboardPage() {
   return (
     <Fragment>
     <div className="space-y-6">
-      <div className="flex items-center gap-1.5">
-        <h1 className="text-xl font-semibold text-slate-800 dark:text-slate-100">Dashboard</h1>
-        {/* Estado de los datos (reservas + ocupación). */}
-        <DataFreshness estado={estadoDatos} actualizadoEn={masAntiguo} ahora={ahora} onRefrescar={refrescarDatos} />
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+        <div className="flex items-center gap-1.5">
+          <h1 className="text-xl font-semibold text-slate-800 dark:text-slate-100">Dashboard</h1>
+          {/* Estado de los datos (reservas + ocupación). */}
+          <DataFreshness estado={estadoDatos} actualizadoEn={masAntiguo} ahora={ahora} onRefrescar={refrescarDatos} />
+        </div>
+        <CurrentDateTime />
       </div>
 
       {/* Todos los controles de la página en una sola franja: pestañas, avisos (como
