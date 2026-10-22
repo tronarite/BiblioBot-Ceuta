@@ -56,6 +56,13 @@ export function formatearFechaEs(date: Date): string {
   return `${NOMBRES_DIA[date.getDay()]} ${date.getDate()} de ${NOMBRES_MES[date.getMonth()]}`;
 }
 
+/** YYYY-MM-DD en hora local (toISOString da la fecha UTC, que entre 0:00 y 2:00 en Madrid es la del día anterior). */
+export function fechaLocalISO(date: Date): string {
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const dd = String(date.getDate()).padStart(2, "0");
+  return `${date.getFullYear()}-${mm}-${dd}`;
+}
+
 export function addDays(date: Date, days: number): Date {
   const copy = new Date(date);
   copy.setDate(copy.getDate() + days);

@@ -4,8 +4,9 @@ import { env } from "../env";
 import { logActivity } from "../activity/activity.service";
 import { getAuthenticatedSession } from "../patronbaseAccount/account.service";
 import { coincideAsiento, confirmSeats, getCart, getPerformances, getSeatMap, holdSeat, checkout as patronbaseCheckout } from "../patronbase/adapter";
-import { addDays, formatearFechaEs, labelMatchesDate } from "../libraries/dateEs";
+import { addDays, fechaLocalISO, formatearFechaEs, labelMatchesDate } from "../libraries/dateEs";
 import { invalidarReservas } from "../reservations/reservations.service";
+import { instanteApertura, type TurnoTipo } from "./apertura";
 import { diaTurnoPermitido } from "./rules";
 import { agregarFecha, leerFechas } from "./fechasProgramacion";
 import { calcularProximaEjecucion } from "./schedules.service";
@@ -14,24 +15,6 @@ import type { Prisma } from "@prisma/client";
 type ProgramacionConRelaciones = Prisma.ProgramacionGetPayload<{
   include: { biblioteca: true; planta: { include: { turnos: true } }; usuario: true };
 }>;
-
-type TurnoTipo = "manana" | "tarde";
-
-// Hora (zona Europe/Madrid, ver TZ del contenedor) a la que PatronBase abre en la web
-// oficial el hueco de reservas de un día para cada turno, EL DÍA ANTERIOR a ese día:
-// mañana abre a las 7:00, tarde a las 14:00. Una vez abierto, el hueco sigue reservable
-// durante todo el día siguiente (incluido el propio día del turno) hasta que se agote.
-const HORA_APERTURA: Record<TurnoTipo, number> = { manana: 7, tarde: 14 };
-
-// Instante exacto en que se abre el hueco de reservas de fechaObjetivo para un turno:
-// el día anterior a las HORA_APERTURA correspondientes. Sirve tanto para "mañana" (el
-// hueco de mañana abre hoy) como para "hoy" (el hueco de hoy abrió ayer, luego este
-// instante ya quedó atrás y por tanto siempre se considera abierto).
-function instanteApertura(fechaObjetivo: Date, turnoTipo: TurnoTipo): Date {
-  const apertura = addDays(fechaObjetivo, -1);
-  apertura.setHours(HORA_APERTURA[turnoTipo], 0, 0, 0);
-  return apertura;
-}
 
 const CAMPO_EXITO: Record<TurnoTipo, "ultimaFechaReservadaManana" | "ultimaFechaReservadaTarde"> = {
   manana: "ultimaFechaReservadaManana",
@@ -61,6 +44,8 @@ function codigosDeAsiento(p: { asientosCodigos: string; asientoPreferidoCodigo: 
 // memoria: tras un reinicio del proceso simplemente se reintenta en el siguiente tick,
 // lo cual es inofensivo (nunca se pierde un intento, como sí pasaba con el timeout
 // único de antes).
+const VENTANA_REINTENTO_MINUTOS = 10;
+const intentadoFueraDeVentana = new Set<string>();
 const ultimoIntentoEnMemoria = new Map<string, number>();
 
 function debeIntentarAhora(clave: string): boolean {
@@ -145,16 +130,31 @@ async function intentarTurno(
 }
 
 async function procesarTurno(programacion: ProgramacionConRelaciones, turnoTipo: TurnoTipo, fechaObjetivo: Date) {
-  const fechaObjetivoStr = fechaObjetivo.toISOString().slice(0, 10);
+  const fechaObjetivoStr = fechaLocalISO(fechaObjetivo);
   const campoExito = CAMPO_EXITO[turnoTipo];
   if (leerFechas(programacion[campoExito]).includes(fechaObjetivoStr)) return; // ya conseguida para esa fecha
 
   // Antes de su hora de apertura PatronBase todavía no muestra el hueco como
   // disponible: esperar en vez de gastar un intento (y un log) en balde. Para
   // fechaObjetivo = hoy esto nunca bloquea, porque su apertura fue ayer.
-  if (new Date() < instanteApertura(fechaObjetivo, turnoTipo)) return;
+  const apertura = instanteApertura(fechaObjetivo, turnoTipo);
+  const ahora = Date.now();
+  if (ahora < apertura.getTime()) return;
 
-  if (!debeIntentarAhora(`${programacion.id}:${turnoTipo}:${fechaObjetivoStr}`)) return;
+  // El hueco solo compite justo al abrirse: se reintenta cada SCHEDULE_RETRY_DELAY_MINUTES
+  // durante VENTANA_REINTENTO_MINUTOS desde la apertura (por si PatronBase tarda unos
+  // segundos en publicarlo o se libera algún asiento enseguida) y se deja de insistir.
+  // Fuera de esa ventana (p. ej. programación creada con el hueco ya abierto, o reinicio
+  // del servidor) solo se hace un intento por fecha, y ninguno si ya consta un fallo.
+  const clave = `${programacion.id}:${turnoTipo}:${fechaObjetivoStr}`;
+  const enVentana = ahora - apertura.getTime() <= VENTANA_REINTENTO_MINUTOS * 60 * 1000;
+  if (!enVentana) {
+    if (leerFechas(programacion[CAMPO_FALLO[turnoTipo]]).includes(fechaObjetivoStr)) return;
+    if (intentadoFueraDeVentana.has(clave)) return;
+    intentadoFueraDeVentana.add(clave);
+  } else if (!debeIntentarAhora(clave)) {
+    return;
+  }
 
   const resultado = await intentarTurno(programacion, turnoTipo, fechaObjetivo);
 

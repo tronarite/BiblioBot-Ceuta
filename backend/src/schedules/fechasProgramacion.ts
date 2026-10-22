@@ -1,3 +1,5 @@
+import { fechaLocalISO } from "../libraries/dateEs";
+
 /**
  * Los campos ultimaFechaReservada{Manana,Tarde} y ultimaFechaFallida{Manana,Tarde} de
  * Programacion guardan un JSON array de fechas (YYYY-MM-DD), no una sola fecha: el
@@ -24,6 +26,6 @@ export function leerFechas(valor: string | null): string[] {
 export function agregarFecha(valor: string | null, fecha: string): string {
   const fechas = leerFechas(valor);
   if (!fechas.includes(fecha)) fechas.push(fecha);
-  const hoyStr = new Date().toISOString().slice(0, 10);
+  const hoyStr = fechaLocalISO(new Date());
   return JSON.stringify(fechas.filter((f) => f >= hoyStr));
 }

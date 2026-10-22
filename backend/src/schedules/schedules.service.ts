@@ -1,5 +1,6 @@
 import { prisma } from "../db";
-import { addDays } from "../libraries/dateEs";
+import { addDays, fechaLocalISO } from "../libraries/dateEs";
+import { instanteApertura } from "./apertura";
 import { leerFechas } from "./fechasProgramacion";
 import { diaTurnoPermitido } from "./rules";
 
@@ -22,19 +23,19 @@ type ProgramacionParaProximaEjecucion = {
   turnos: string; // JSON
   ultimaFechaReservadaManana: string | null;
   ultimaFechaReservadaTarde: string | null;
+  ultimaFechaFallidaManana?: string | null;
+  ultimaFechaFallidaTarde?: string | null;
 };
 
 /**
- * Próxima fecha (a partir de hoy) en la que la programación todavía tiene algo
- * pendiente: el primer día de diasSemana para el que al menos uno de los turnos
- * solicitados no tiene ya una reserva conseguida (ultimaFechaReservada{Manana,Tarde}).
- * Incluye "hoy" porque el motor (engine.ts) también puede reservar para hoy: el hueco
- * de un día abre el día anterior, pero sigue reservable durante todo ese día.
+ * Próximo instante en que el motor va a intentar reservar: la apertura del hueco (el día
+ * anterior a las 7:00 en mañana, a las 14:00 en tarde) del primer día de diasSemana con
+ * algún turno todavía pendiente. Un turno pendiente cuya apertura ya pasó y que ya
+ * consta como fallido se da por perdido (el motor no insiste), así que se salta. Si la
+ * apertura ya pasó pero aún se está intentando, se devuelve ese instante pasado.
  *
- * Se recalcula en cada lectura en vez de fiarse de un valor persistido: el motor solo
- * tocaba antes ese campo tras una reserva con éxito, así que en cuanto la programación
- * se pausaba o pasaba un día sin conseguir sitio, se quedaba mostrando una fecha pasada
- * indefinidamente.
+ * Se recalcula en cada lectura en vez de fiarse de un valor persistido, para no mostrar
+ * una fecha obsoleta tras una pausa o un día sin sitio.
  */
 export function calcularProximaEjecucion(p: ProgramacionParaProximaEjecucion): Date | null {
   if (p.estado !== "activa") return null;
@@ -43,20 +44,22 @@ export function calcularProximaEjecucion(p: ProgramacionParaProximaEjecucion): D
   const turnos = JSON.parse(p.turnos) as Array<"manana" | "tarde">;
   if (diasSemana.length === 0 || turnos.length === 0) return null;
 
+  const ahora = Date.now();
   for (let i = 0; i <= 8; i++) {
     const candidata = addDays(new Date(), i);
     if (!diasSemana.includes(candidata.getDay())) continue;
 
-    const candidataStr = candidata.toISOString().slice(0, 10);
-    const pendiente = turnos.some((t) =>
-      t === "manana"
-        ? !leerFechas(p.ultimaFechaReservadaManana).includes(candidataStr)
-        : !leerFechas(p.ultimaFechaReservadaTarde).includes(candidataStr),
-    );
-    if (pendiente) {
-      candidata.setHours(7, 0, 0, 0);
-      return candidata;
+    const candidataStr = fechaLocalISO(candidata);
+    let mejor: Date | null = null;
+    for (const t of turnos) {
+      const hecho = leerFechas(t === "manana" ? p.ultimaFechaReservadaManana : p.ultimaFechaReservadaTarde);
+      if (hecho.includes(candidataStr)) continue;
+      const apertura = instanteApertura(candidata, t);
+      const fallido = leerFechas(t === "manana" ? p.ultimaFechaFallidaManana ?? null : p.ultimaFechaFallidaTarde ?? null);
+      if (apertura.getTime() < ahora && fallido.includes(candidataStr)) continue;
+      if (!mejor || apertura < mejor) mejor = apertura;
     }
+    if (mejor) return mejor;
   }
   return null;
 }

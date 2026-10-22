@@ -124,7 +124,7 @@ export function ScheduleCard({
       </p>
       {programacion.proximaEjecucion && (
         <p className="text-xs text-slate-500 dark:text-slate-400">
-          Próxima ejecución: {new Date(programacion.proximaEjecucion).toLocaleString("es-ES")}
+          Próximo intento: {new Date(programacion.proximaEjecucion).toLocaleString("es-ES")}
         </p>
       )}
 

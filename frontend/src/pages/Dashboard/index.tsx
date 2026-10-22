@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useRef, useState } from "react";
+import { NextAttempts } from "../../components/NextAttempts";
 import { Link } from "react-router-dom";
 import { api } from "../../api/client";
 import { guardarLocal, leerLocal } from "../../api/localCache";
@@ -247,6 +248,10 @@ export function DashboardPage() {
             )}
             <ReservationsList titulo="En curso" reservas={reservas.enCurso} vacio="No tienes reservas en curso" />
             <ReservationsList titulo="Próximas" reservas={reservas.proximas} vacio="No tienes próximas reservas" />
+
+            <div className="lg:col-span-2">
+              <NextAttempts />
+            </div>
 
             <div className="lg:col-span-2">
               <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
