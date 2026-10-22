@@ -4,7 +4,7 @@ import { env } from "../env";
 import { logActivity } from "../activity/activity.service";
 import { getAuthenticatedSession } from "../patronbaseAccount/account.service";
 import { coincideAsiento, confirmSeats, getCart, getPerformances, getSeatMap, holdSeat, checkout as patronbaseCheckout } from "../patronbase/adapter";
-import { addDays, fechaLocalISO, formatearFechaEs, labelMatchesDate } from "../libraries/dateEs";
+import { addDays, fechaLocalISO, formatearFechaEs, labelMatchesDate, startOfDay } from "../libraries/dateEs";
 import { invalidarReservas } from "../reservations/reservations.service";
 import { instanteApertura, type TurnoTipo } from "./apertura";
 import { diaTurnoPermitido } from "./rules";
@@ -133,6 +133,27 @@ async function procesarTurno(programacion: ProgramacionConRelaciones, turnoTipo:
   const fechaObjetivoStr = fechaLocalISO(fechaObjetivo);
   const campoExito = CAMPO_EXITO[turnoTipo];
   if (leerFechas(programacion[campoExito]).includes(fechaObjetivoStr)) return; // ya conseguida para esa fecha
+
+  // Si ya hay una reserva de este usuario para ese día y turno (hecha a mano, o por el
+  // motor sin que quedara anotada la fecha), no hay nada que intentar: reintentar solo
+  // chocaría con su propio asiento y registraría un fallo que no es real.
+  const turno = programacion.planta.turnos.find((t) => t.tipo === turnoTipo);
+  if (turno) {
+    const inicio = startOfDay(fechaObjetivo);
+    const existente = await prisma.reserva.findFirst({
+      where: {
+        usuarioId: programacion.usuarioId,
+        turnoId: turno.id,
+        fecha: { gte: inicio, lt: addDays(inicio, 1) },
+      },
+    });
+    if (existente) {
+      const valor = agregarFecha(programacion[campoExito], fechaObjetivoStr);
+      await prisma.programacion.update({ where: { id: programacion.id }, data: { [campoExito]: valor } });
+      (programacion as Record<string, unknown>)[campoExito] = valor;
+      return;
+    }
+  }
 
   // Antes de su hora de apertura PatronBase todavía no muestra el hueco como
   // disponible: esperar en vez de gastar un intento (y un log) en balde. Para
