@@ -113,9 +113,12 @@ async function resolverTurno(tituloProduccion: string) {
  */
 export async function listReservations(cuentaId: string): Promise<{ enCurso: ReservaPatronBase[]; proximas: ReservaPatronBase[] }> {
   const cuenta = await prisma.cuentaPatronBase.findUnique({ where: { id: cuentaId } });
-  if (!cuenta || cuenta.estadoVinculacion !== "vinculada") {
+  if (!cuenta) {
     return { enCurso: [], proximas: [] };
   }
+  // Una cuenta en "error" no se descarta aquí: getAuthenticatedSession vuelve a intentar el
+  // login (con espera entre fallos) y la deja "vinculada" en cuanto funciona, sin que haya
+  // que pulsar «Reintentar» para que se recupere de un fallo puntual.
 
   const session = await getAuthenticatedSession(cuentaId);
   const historial = await getSalesHistory(session);

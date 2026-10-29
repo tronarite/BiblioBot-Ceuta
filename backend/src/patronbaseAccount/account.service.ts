@@ -183,15 +183,18 @@ export async function getAuthenticatedSession(cuentaId: string): Promise<PatronB
   }
 
   const password = decryptSecret(cuenta.credencialesCifrado);
-  // Un segundo intento inmediato absorbe los fallos puntuales de PatronBase antes de
-  // dar el vínculo por roto.
+  // Varios intentos con una pequeña espera absorben los fallos puntuales de PatronBase
+  // (la web se atasca o rechaza un login suelto) antes de dar el vínculo por roto.
   let session = new PatronBaseSession();
   let ok = await login(session, cuenta.patronbaseEmail, password);
-  if (!ok) {
+  for (const esperaMs of [1500, 4000]) {
+    if (ok) break;
+    await new Promise((r) => setTimeout(r, esperaMs));
     session = new PatronBaseSession();
     ok = await login(session, cuenta.patronbaseEmail, password);
   }
   if (!ok) {
+    console.warn(`[patronbase] login fallido tras 3 intentos para ${cuenta.patronbaseEmail}`);
     ultimoLoginFallido.set(cuentaId, Date.now());
     await prisma.cuentaPatronBase.update({ where: { id: cuentaId }, data: { estadoVinculacion: "error" } });
     throw new Error("El login contra PatronBase falló con las credenciales guardadas");
