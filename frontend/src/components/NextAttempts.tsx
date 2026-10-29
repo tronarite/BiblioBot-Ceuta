@@ -39,9 +39,7 @@ export function NextAttempts() {
             </Link>
             <span className="text-slate-500 dark:text-slate-400"> — {formatear(p.proximaEjecucion!)}</span>
             {mostrarCuenta && p.cuentaNombre && (
-              <span className="ml-2 rounded-full bg-brand-50 px-2 py-0.5 text-xs font-medium text-brand-700 dark:bg-brand-900/40 dark:text-brand-300">
-                {p.cuentaNombre}
-              </span>
+              <span className="text-xs text-slate-400 dark:text-slate-500"> · {p.cuentaNombre}</span>
             )}
           </li>
         ))}
