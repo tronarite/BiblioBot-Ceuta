@@ -5,6 +5,7 @@ import { logActivity } from "../activity/activity.service";
 import { getAuthenticatedSession } from "../patronbaseAccount/account.service";
 import { coincideAsiento, confirmSeats, getCart, getPerformances, getSeatMap, holdSeat, checkout as patronbaseCheckout } from "../patronbase/adapter";
 import { addDays, fechaLocalISO, formatearFechaEs, labelMatchesDate, startOfDay } from "../libraries/dateEs";
+import { withAccountLock } from "../patronbase/accountLock";
 import { invalidarReservas, tieneReservaReal } from "../reservations/reservations.service";
 import { instanteApertura, type TurnoTipo } from "./apertura";
 import { diaTurnoPermitido } from "./rules";
@@ -179,6 +180,20 @@ async function procesarTurno(programacion: ProgramacionConRelaciones, turnoTipo:
     return;
   }
 
+  // Las programaciones de una misma cuenta se turnan: así la segunda ve la reserva que acaba de
+  // hacer la primera (solo se puede reservar un asiento por sesión) en vez de chocar con ella.
+  return withAccountLock(programacion.cuentaId ?? programacion.usuarioId, () =>
+    intentarYRegistrar(programacion, turnoTipo, fechaObjetivo, fechaObjetivoStr),
+  );
+}
+
+async function intentarYRegistrar(
+  programacion: ProgramacionConRelaciones,
+  turnoTipo: TurnoTipo,
+  fechaObjetivo: Date,
+  fechaObjetivoStr: string,
+) {
+  const campoExito = CAMPO_EXITO[turnoTipo];
   // Si la cuenta ya tiene en PatronBase una reserva para esa sala, turno y día (hecha a
   // mano, desde otra programación o antes de crear esta), no hay nada que intentar: el
   // asiento aparecería ocupado por ella misma y se registraría un fallo que no es real.
@@ -229,6 +244,8 @@ async function procesarTurno(programacion: ProgramacionConRelaciones, turnoTipo:
         cuentaId: programacion.cuentaId,
         programacionId: programacion.id,
         tipoEvento: "reserva_fallida",
+        fechaObjetivo: fechaObjetivoStr,
+        turnoTipo,
         mensaje: `No se pudo reservar el ${formatearFechaEs(fechaObjetivo)} (${turnoTipo}) en ${programacion.planta.nombre}: ${resultado.motivo}`,
       });
       const nuevoValor = agregarFecha(programacion[campoFallo], fechaObjetivoStr);

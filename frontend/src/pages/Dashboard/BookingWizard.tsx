@@ -328,29 +328,39 @@ export function BookingWizard({
           </p>
           {loading && <p className="text-sm text-slate-500 dark:text-slate-400">Consultando días disponibles…</p>}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
-            {performances.map((p) => (
+            {performances.map((p) => {
+              const enCesta = cesta.some((c) => c.turno.id === turnoActual?.id && c.perf.perfId === p.perfId);
+              const bloqueado = !p.available || !!p.yaReservada || enCesta;
+              return (
               <button
                 key={p.perfId}
-                disabled={!p.available}
+                disabled={bloqueado}
                 onClick={() => {
                   setPerf(p);
                   setSeat(null);
                   setFase("asiento");
                 }}
                 className={`rounded-xl border p-3 text-left text-sm transition ${
-                  p.available
+                  !bloqueado
                     ? "border-slate-200 hover:border-brand-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-brand-500"
                     : "cursor-not-allowed border-slate-100 bg-slate-50 dark:border-slate-800 dark:bg-slate-900/40"
                 }`}
               >
-                <p className={`font-medium ${p.available ? "" : "text-slate-500 dark:text-slate-400"}`}>
+                <p className={`font-medium ${!bloqueado ? "" : "text-slate-500 dark:text-slate-400"}`}>
                   {p.label.split("No estará")[0]}
                 </p>
                 {!p.available && p.availableFromText && (
                   <p className="mt-1 text-sm leading-snug text-slate-500 dark:text-slate-400">{p.availableFromText}</p>
                 )}
+                {p.available && p.yaReservada && (
+                  <p className="mt-1 text-sm leading-snug text-slate-500 dark:text-slate-400">Ya tienes una reserva en este turno</p>
+                )}
+                {p.available && !p.yaReservada && enCesta && (
+                  <p className="mt-1 text-sm leading-snug text-slate-500 dark:text-slate-400">Ya está en tu cesta</p>
+                )}
               </button>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

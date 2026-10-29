@@ -172,6 +172,10 @@ model ActividadLog {
   programacion    Programacion?  @relation(fields: [programacionId], references: [id])
   tipoEvento      String
   mensaje         String
+  // Para los fallos de reserva: sesión a la que se refieren (YYYY-MM-DD y turno), para poder
+  // dejar de avisar si esa sesión ya tiene reserva o ya pasó.
+  fechaObjetivo   String?
+  turnoTipo       String?
   fecha           DateTime       @default(now())
 }
 

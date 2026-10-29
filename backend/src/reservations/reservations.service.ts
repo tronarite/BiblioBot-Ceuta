@@ -14,7 +14,7 @@ import {
 } from "../patronbase/adapter";
 import { PatronBaseSession } from "../patronbase/session";
 import { withAccountLock } from "../patronbase/accountLock";
-import { addDays, fechaLocalISO, parseSpanishDate, startOfDay } from "../libraries/dateEs";
+import { addDays, fechaLocalISO, labelMatchesDate, parseSpanishDate, startOfDay } from "../libraries/dateEs";
 import { conCacheSwr, invalidarCache } from "../libraries/cache";
 
 export type ReservaPatronBase = {
@@ -250,11 +250,34 @@ export function invalidarReservas(cuentaId: string) {
   invalidarCache(claveReservas(cuentaId));
 }
 
-export async function getPerformancesForTurno(turnoId: string) {
-  const turno = await prisma.turno.findUnique({ where: { id: turnoId } });
+export async function getPerformancesForTurno(turnoId: string, cuentaId?: string) {
+  const turno = await prisma.turno.findUnique({ where: { id: turnoId }, include: { planta: { include: { biblioteca: true } } } });
   if (!turno) throw new Error("Turno no encontrado");
   const session = new PatronBaseSession();
-  return getPerformances(session, turno.patronbaseProdId);
+  const resultado = await getPerformances(session, turno.patronbaseProdId);
+
+  // Solo se puede reservar un asiento por sesión (día, planta y turno): se marcan los días
+  // en los que la cuenta ya tiene reserva para que no se pueda elegir otro asiento.
+  let fechasReservadas: Date[] = [];
+  if (cuentaId) {
+    try {
+      const { datos } = await listReservationsCacheada(cuentaId);
+      fechasReservadas = [...datos.enCurso, ...datos.proximas]
+        .filter(
+          (r) =>
+            r.bibliotecaNombre === turno.planta.biblioteca.nombre &&
+            r.plantaNombre === turno.planta.nombre &&
+            r.turnoTipo === turno.tipo,
+        )
+        .map((r) => new Date(r.fecha));
+    } catch {
+      /* sin poder leer las reservas no se marca nada (la reserva real lo vuelve a comprobar) */
+    }
+  }
+  return {
+    ...resultado,
+    options: resultado.options.map((o) => ({ ...o, yaReservada: fechasReservadas.some((d) => labelMatchesDate(o.label, d)) })),
+  };
 }
 
 export async function getSeatMapForTurno(turnoId: string, perfId: string) {
@@ -281,13 +304,26 @@ export async function crearReservaPuntual(params: {
   fecha: Date;
   seat: SeatSelection;
 }) {
-  const turno = await prisma.turno.findUnique({ where: { id: params.turnoId }, include: { planta: true } });
+  const turno = await prisma.turno.findUnique({ where: { id: params.turnoId }, include: { planta: { include: { biblioteca: true } } } });
   if (!turno) throw new Error("Turno no encontrado");
 
   const cuenta = await prisma.cuentaPatronBase.findUnique({ where: { id: params.cuentaId } });
   if (!cuenta) throw new Error("No tienes una cuenta PatronBase vinculada");
 
   return withAccountLock(cuenta.id, async () => {
+    // Solo se puede reservar un asiento por sesión (día, planta y turno): si ya hay uno, se
+    // explica claro en vez de intentarlo y registrar un fallo que no es real.
+    const fechaISO = fechaLocalISO(params.fecha);
+    const yaReservada = await tieneReservaReal(cuenta.id, {
+      bibliotecaNombre: turno.planta.biblioteca.nombre,
+      plantaNombre: turno.planta.nombre,
+      turnoTipo: turno.tipo as "manana" | "tarde",
+      fechaISO,
+    }).catch(() => false);
+    if (yaReservada) {
+      throw new Error("Ya tienes una reserva para ese día, planta y turno: solo se puede reservar un asiento por sesión");
+    }
+
     const session = await getAuthenticatedSession(params.cuentaId);
 
     // Importante: el confirmHref se obtiene de ESTA carga del mapa, la misma que
@@ -301,6 +337,8 @@ export async function crearReservaPuntual(params: {
         usuarioId: params.usuarioId,
         cuentaId: params.cuentaId,
         tipoEvento: "reserva_fallida",
+        fechaObjetivo: fechaISO,
+        turnoTipo: turno.tipo,
         mensaje: `No se pudo retener el asiento ${params.seat.label} en ${turno.planta.nombre}`,
       });
       throw new Error("El asiento seleccionado ya no está disponible");
@@ -316,6 +354,8 @@ export async function crearReservaPuntual(params: {
         usuarioId: params.usuarioId,
         cuentaId: params.cuentaId,
         tipoEvento: "reserva_fallida",
+        fechaObjetivo: fechaISO,
+        turnoTipo: turno.tipo,
         mensaje: `La cesta quedó vacía al intentar reservar ${params.seat.label}`,
       });
       throw new Error("No se pudo completar la reserva: la cesta quedó vacía");
@@ -327,6 +367,8 @@ export async function crearReservaPuntual(params: {
         usuarioId: params.usuarioId,
         cuentaId: params.cuentaId,
         tipoEvento: "reserva_fallida",
+        fechaObjetivo: fechaISO,
+        turnoTipo: turno.tipo,
         mensaje: `El checkout de ${params.seat.label} no devolvió número de pedido; puede no haberse completado`,
       });
       throw new Error("No se pudo confirmar la reserva en PatronBase (no se obtuvo número de pedido)");

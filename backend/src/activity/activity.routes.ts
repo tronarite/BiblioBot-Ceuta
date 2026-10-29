@@ -2,6 +2,7 @@ import { Router } from "express";
 import { prisma } from "../db";
 import { requireAuth, requireCuenta } from "../auth/auth.middleware";
 import { listActivity } from "./activity.service";
+import { listFallosVigentes } from "./fallos";
 
 export const activityRouter = Router();
 activityRouter.use(requireAuth, requireCuenta);
@@ -12,6 +13,9 @@ activityRouter.get("/", async (req, res) => {
   const cuentaId = req.todasCuentas
     ? (await prisma.cuentaPatronBase.findMany({ where: { usuarioId: req.user!.sub }, select: { id: true } })).map((c) => c.id)
     : req.cuentaId;
+  if (tipo === "reserva_fallida" && !programacionId && !desde && !hasta) {
+    return res.json(await listFallosVigentes(Array.isArray(cuentaId) ? cuentaId : [cuentaId]));
+  }
   const items = await listActivity({
     cuentaId,
     tipoEvento: typeof tipo === "string" ? (tipo as any) : undefined,

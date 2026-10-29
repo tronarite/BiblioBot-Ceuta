@@ -26,7 +26,7 @@ reservationsRouter.get("/performances", async (req, res) => {
   const turnoId = req.query.turnoId;
   if (typeof turnoId !== "string") return res.status(400).json({ error: "turnoId requerido" });
   try {
-    const performances = await getPerformancesForTurno(turnoId);
+    const performances = await getPerformancesForTurno(turnoId, req.cuentaId);
     res.json(performances);
   } catch (err) {
     res.status(502).json({ error: (err as Error).message });

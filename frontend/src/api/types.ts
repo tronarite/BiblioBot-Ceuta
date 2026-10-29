@@ -62,6 +62,8 @@ export type PerformanceOption = {
   label: string;
   available: boolean;
   availableFromText?: string;
+  // La cuenta ya tiene reserva en ese día, planta y turno (solo se permite un asiento por sesión).
+  yaReservada?: boolean;
 };
 
 export type PerformancesResponse = {

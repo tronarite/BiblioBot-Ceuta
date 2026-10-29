@@ -8,6 +8,8 @@ export async function logActivity(params: {
   programacionId?: string | null;
   tipoEvento: TipoEvento;
   mensaje: string;
+  fechaObjetivo?: string;
+  turnoTipo?: string;
 }) {
   return prisma.actividadLog.create({
     data: {
@@ -16,6 +18,8 @@ export async function logActivity(params: {
       programacionId: params.programacionId ?? undefined,
       tipoEvento: params.tipoEvento,
       mensaje: params.mensaje,
+      fechaObjetivo: params.fechaObjetivo,
+      turnoTipo: params.turnoTipo,
     },
   });
 }
