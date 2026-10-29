@@ -13,7 +13,8 @@ function formatear(iso: string): string {
 
 /** Cuándo intentará el bot reservar cada programación activa (la hora a la que abre el hueco). */
 export function NextAttempts() {
-  const { cuentas } = useCuentas();
+  const { cuentaActiva } = useCuentas();
+  const mostrarCuenta = !!cuentaActiva && cuentaActiva.modoProgramaciones !== "esta";
   const [programaciones, setProgramaciones] = useState<Programacion[]>([]);
 
   useEffect(() => {
@@ -37,7 +38,7 @@ export function NextAttempts() {
               {p.nombre ?? `${p.biblioteca.nombre} · ${p.planta.nombre}`}
             </Link>
             <span className="text-slate-500 dark:text-slate-400"> — {formatear(p.proximaEjecucion!)}</span>
-            {cuentas.length > 1 && p.cuentaNombre && (
+            {mostrarCuenta && p.cuentaNombre && (
               <span className="ml-2 rounded-full bg-brand-50 px-2 py-0.5 text-xs font-medium text-brand-700 dark:bg-brand-900/40 dark:text-brand-300">
                 {p.cuentaNombre}
               </span>
