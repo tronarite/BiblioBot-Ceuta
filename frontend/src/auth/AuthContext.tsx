@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { api, ApiError } from "../api/client";
 import { borrarLocalConPrefijo } from "../api/localCache";
 import type { Usuario } from "../api/types";
@@ -19,9 +19,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [usuario, setUsuario] = useState<Usuario | null>(null);
   const [adminExists, setAdminExists] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
+  const cargadoUnaVez = useRef(false);
 
   const refresh = useCallback(async () => {
-    setLoading(true);
+    // Solo la primera carga bloquea la pantalla: si no, cada refresh (p. ej. al cambiar un
+    // ajuste en Cuenta) desmontaría toda la página y el scroll volvería arriba.
+    if (!cargadoUnaVez.current) setLoading(true);
     try {
       const status = await api.get<{ adminExists: boolean }>("/auth/status");
       setAdminExists(status.adminExists);
@@ -38,6 +41,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
     } finally {
+      cargadoUnaVez.current = true;
       setLoading(false);
     }
   }, []);
