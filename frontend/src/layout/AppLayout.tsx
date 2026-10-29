@@ -68,7 +68,7 @@ function ThemeToggle() {
 export function AppLayout() {
   const { usuario, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
-  const { cuentaActivaId, cargada } = useCuentas();
+  const { claveVista, cargada } = useCuentas();
 
   if (usuario?.debeCambiarPassword) return <ForcePasswordChange />;
 
@@ -161,7 +161,7 @@ export function AppLayout() {
 
       <main className="mx-auto max-w-6xl px-4 py-6">
         {/* key: al cambiar de cuenta las páginas se vuelven a montar y recargan sus datos */}
-        {cargada ? <Outlet key={cuentaActivaId ?? "sin-cuenta"} /> : null}
+        {cargada ? <Outlet key={claveVista ?? "sin-cuenta"} /> : null}
       </main>
     </div>
   );

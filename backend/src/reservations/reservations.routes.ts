@@ -14,7 +14,7 @@ reservationsRouter.use(requireAuth, requireCuenta);
 reservationsRouter.get("/", async (req, res) => {
   if (!req.cuentaId) return res.json({ items: { enCurso: [], proximas: [] }, actualizadoEn: null, actualizando: false });
   try {
-    const { datos, actualizadoEn, actualizando, errores } = await listReservationsVisibles(req.user!.sub, req.cuentaId);
+    const { datos, actualizadoEn, actualizando, errores } = await listReservationsVisibles(req.user!.sub, req.cuentaId, req.todasCuentas);
     res.json({ items: datos, actualizadoEn, actualizando, errores });
   } catch (err) {
     console.error("[reservations] fallo al consultar reservas:", err);
@@ -63,6 +63,7 @@ const crearSchema = z.object({
 });
 
 reservationsRouter.post("/", async (req, res) => {
+  if (req.todasCuentas) return res.status(422).json({ error: "Elige una cuenta concreta para reservar" });
   const parsed = crearSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: "Datos inválidos", detalles: parsed.error.flatten() });
