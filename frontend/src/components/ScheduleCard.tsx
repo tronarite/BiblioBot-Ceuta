@@ -29,9 +29,8 @@ export function ScheduleCard({
   onRename: (nombre: string) => void;
   onEdit: () => void;
 }) {
-  const { cuentaActiva, vistaTodas } = useCuentas();
-  const mostrarCuenta =
-    (vistaTodas || (!!cuentaActiva && cuentaActiva.modoProgramaciones !== "esta")) && !!programacion.cuentaNombre;
+  const { cuentaActiva } = useCuentas();
+  const mostrarCuenta = !!cuentaActiva && cuentaActiva.modoProgramaciones !== "esta" && !!programacion.cuentaNombre;
   const turnos = JSON.parse(programacion.turnos) as string[];
   const diasSemana = JSON.parse(programacion.diasSemana) as number[];
   let asientos: string[] = [];

@@ -40,7 +40,7 @@ const ESTADO_INICIAL: EstadoFuente = { cargando: true, error: false, actualizado
 
 export function DashboardPage() {
   const { usuario } = useAuth();
-  const { claveVista, vistaTodas } = useCuentas();
+  const { cuentaActivaId } = useCuentas();
   const [tab, setTab] = useState<(typeof TABS)[number]["id"]>("general");
   const [bibliotecas, setBibliotecas] = useState<Biblioteca[]>([]);
   // Se inicializan con lo último que se vio (localStorage) para que al entrar/recargar el
@@ -49,7 +49,7 @@ export function DashboardPage() {
     () => leerLocal<DisponibilidadBiblioteca[]>("dash:disponibilidad"),
   );
   const [reservas, setReservas] = useState<ReservationsResponse>(
-    () => leerLocal<ReservationsResponse>(claveReservas(usuario?.id, claveVista)) ?? VACIO,
+    () => leerLocal<ReservationsResponse>(claveReservas(usuario?.id, cuentaActivaId)) ?? VACIO,
   );
   const [horarios, setHorarios] = useState<HorarioExtraordinario[]>([]);
   const [mensaje, setMensaje] = useState<string | null>(null);
@@ -117,7 +117,7 @@ export function DashboardPage() {
       (items) => {
         setErrorReservas(null);
         setReservas(items);
-        guardarLocal(claveReservas(usuario?.id, claveVista), items);
+        guardarLocal(claveReservas(usuario?.id, cuentaActivaId), items);
       },
       (err) => setErrorReservas(err instanceof Error ? err.message : "No se pudieron consultar tus reservas"),
       gen,
@@ -233,9 +233,7 @@ export function DashboardPage() {
         {tab === "general" && (
           <button
             onClick={() => setWizardOpen(true)}
-            disabled={vistaTodas}
-            title={vistaTodas ? "Elige una cuenta concreta para reservar" : undefined}
-            className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
           >
             Hacer una reserva
           </button>

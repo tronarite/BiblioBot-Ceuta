@@ -21,7 +21,7 @@ export async function logActivity(params: {
 }
 
 export async function listActivity(params: {
-  cuentaId: string | string[];
+  cuentaId: string;
   tipoEvento?: TipoEvento;
   programacionId?: string;
   desde?: Date;
@@ -29,7 +29,7 @@ export async function listActivity(params: {
 }) {
   return prisma.actividadLog.findMany({
     where: {
-      cuentaId: Array.isArray(params.cuentaId) ? { in: params.cuentaId } : params.cuentaId,
+      cuentaId: params.cuentaId,
       tipoEvento: params.tipoEvento,
       programacionId: params.programacionId,
       fecha: {

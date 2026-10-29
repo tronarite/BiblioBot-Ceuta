@@ -70,13 +70,13 @@ export function calcularProximaEjecucion(p: ProgramacionParaProximaEjecucion): D
  * cuenta ("esta"), las de todas sus cuentas ("todas") o las de las elegidas ("seleccionadas",
  * más siempre la activa). Cada una lleva el nombre de su cuenta.
  */
-export async function listSchedules(usuarioId: string, cuentaActivaId: string, todas = false) {
+export async function listSchedules(usuarioId: string, cuentaActivaId: string) {
   const cuentas = await prisma.cuentaPatronBase.findMany({ where: { usuarioId } });
   const activa = cuentas.find((c) => c.id === cuentaActivaId);
   if (!activa) return [];
 
   let ids: string[];
-  if (todas || activa.modoProgramaciones === "todas") ids = cuentas.map((c) => c.id);
+  if (activa.modoProgramaciones === "todas") ids = cuentas.map((c) => c.id);
   else if (activa.modoProgramaciones === "seleccionadas") {
     const elegidas = JSON.parse(activa.programacionesDeCuentas) as string[];
     ids = cuentas.filter((c) => c.id === activa.id || elegidas.includes(c.id)).map((c) => c.id);

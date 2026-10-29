@@ -176,10 +176,9 @@ function GrupoVisibilidad({
 
 /** Qué se ve en el dashboard y en Programaciones cuando una cuenta concreta está activa. */
 export function VisibilidadCuentas() {
-  const { cuentas, cuentaActiva, vistaTodas, recargar } = useCuentas();
+  const { cuentas, cuentaActiva, recargar } = useCuentas();
   const { refresh } = useAuth();
-  // En la vista "Todas las cuentas" no hay una cuenta concreta cuyos ajustes editar.
-  if (!cuentaActiva || cuentas.length < 2 || vistaTodas) return null;
+  if (!cuentaActiva || cuentas.length < 2) return null;
 
   async function actualizar() {
     await recargar();
