@@ -4,8 +4,7 @@ const VISTA_TODAS = "todas";
 
 /**
  * Selector de cuenta PatronBase activa. Incluye la opción «Todas las cuentas», una vista
- * temporal de solo lectura (no se guarda: al recargar manda el ajuste de la cuenta).
- * Solo aparece si hay más de una cuenta.
+ * de solo lectura. La elección se recuerda al recargar. Solo aparece si hay más de una cuenta.
  */
 export function CuentaSelector() {
   const { cuentas, cuentaActivaId, vistaTodas, alternarTodas, seleccionar } = useCuentas();

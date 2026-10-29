@@ -21,13 +21,27 @@ const CuentaContext = createContext<CuentaState | null>(null);
 const CLAVE = "bibliobot:cuentaActiva";
 export const VISTA_TODAS = "todas";
 
-function leerGuardada(): string | null {
+const CLAVE_TODAS = "bibliobot:vistaTodas";
+
+function leer(clave: string): string | null {
   try {
-    const guardada = localStorage.getItem(CLAVE);
-    return guardada === VISTA_TODAS ? null : guardada;
+    return localStorage.getItem(clave);
   } catch {
     return null;
   }
+}
+
+function guardar(clave: string, valor: string) {
+  try {
+    localStorage.setItem(clave, valor);
+  } catch {
+    /* sin persistencia, no pasa nada */
+  }
+}
+
+function leerGuardada(): string | null {
+  const guardada = leer(CLAVE);
+  return guardada === VISTA_TODAS ? null : guardada;
 }
 
 export function CuentaProvider({ children }: { children: ReactNode }) {
@@ -35,8 +49,8 @@ export function CuentaProvider({ children }: { children: ReactNode }) {
   const [cuentas, setCuentas] = useState<CuentaPatronBase[]>([]);
   const [activaId, setActivaId] = useState<string | null>(leerGuardada);
   const [cargada, setCargada] = useState(false);
-  // Vista temporal: no se guarda, así al recargar o cambiar de cuenta se vuelve al ajuste de la cuenta.
-  const [verTodas, setVerTodas] = useState(false);
+  // Vista "Todas las cuentas": se recuerda al recargar, igual que la cuenta elegida.
+  const [verTodas, setVerTodas] = useState(() => leer(CLAVE_TODAS) === "1");
 
   const recargar = useCallback(async () => {
     if (!usuario) {
@@ -68,16 +82,17 @@ export function CuentaProvider({ children }: { children: ReactNode }) {
   // Síncrono en render para que las peticiones de los hijos ya lleven la cabecera.
   setCuentaActiva(claveVista);
 
-  const alternarTodas = useCallback(() => setVerTodas((v) => !v), []);
+  const alternarTodas = useCallback(() => {
+    const siguiente = !verTodas;
+    setVerTodas(siguiente);
+    guardar(CLAVE_TODAS, siguiente ? "1" : "0");
+  }, [verTodas]);
 
   const seleccionar = useCallback((id: string) => {
     setVerTodas(false);
     setActivaId(id);
-    try {
-      localStorage.setItem(CLAVE, id);
-    } catch {
-      /* sin persistencia, no pasa nada */
-    }
+    guardar(CLAVE, id);
+    guardar(CLAVE_TODAS, "0");
   }, []);
 
   return (
