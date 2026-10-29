@@ -3,6 +3,9 @@ import { z } from "zod";
 import { prisma } from "../db";
 import { requireAdmin, requireAuth } from "../auth/auth.middleware";
 import { generarPasswordTemporal, hashPassword, normalizeEmail } from "../auth/auth.service";
+import { encryptSecret } from "../crypto/secretBox";
+import { login as loginPatronBase } from "../patronbase/adapter";
+import { PatronBaseSession } from "../patronbase/session";
 import { comprobarScraper } from "../monitor/scraper-monitor";
 import { calcularProximaEjecucion } from "../schedules/schedules.service";
 
@@ -78,38 +81,47 @@ adminRouter.get("/usuarios", requireAdmin, async (_req, res) => {
   res.json(usuarios);
 });
 
-const crearUsuarioSchema = z
-  .object({
-    nombre: z.string().min(1),
-    usaCorreo: z.boolean(),
-    email: z.string().email().optional(),
-    username: z.string().min(3).optional(),
-    password: z.string().min(8),
-    rol: z.enum(["admin", "usuario"]).default("usuario"),
-  })
-  .refine((data) => (data.usaCorreo ? !!data.email : !!data.username), {
-    message: "Falta el email o el nombre de usuario",
-  });
+// La cuenta de BiblioBot se crea a partir de las credenciales de PatronBase: el email y la
+// contraseña son los mismos para entrar en BiblioBot y en PatronBase, y esa cuenta queda
+// vinculada como la principal del usuario (las demás se añaden luego desde Cuenta).
+const crearUsuarioSchema = z.object({
+  nombre: z.string().min(1),
+  email: z.string().email(),
+  password: z.string().min(1),
+  rol: z.enum(["admin", "usuario"]).default("usuario"),
+});
 
 adminRouter.post("/usuarios", requireAdmin, async (req, res) => {
   const parsed = crearUsuarioSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Datos inválidos" });
-  const { nombre, usaCorreo, username, password, rol } = parsed.data;
-  const email = usaCorreo && parsed.data.email ? normalizeEmail(parsed.data.email) : undefined;
+  const { nombre, password, rol } = parsed.data;
+  const email = normalizeEmail(parsed.data.email);
 
-  const existente = await prisma.usuario.findFirst({
-    where: usaCorreo ? { email } : { username },
-  });
-  if (existente) return res.status(409).json({ error: "Ya existe una cuenta con ese email o nombre de usuario" });
+  const existente = await prisma.usuario.findUnique({ where: { email } });
+  if (existente) return res.status(409).json({ error: "Ya existe una cuenta con ese email" });
+
+  // Comprueba las credenciales contra PatronBase antes de crear nada.
+  const sesion = new PatronBaseSession();
+  if (!(await loginPatronBase(sesion, parsed.data.email.trim(), password))) {
+    return res.status(422).json({ error: "No se pudo iniciar sesión en PatronBase con esas credenciales" });
+  }
 
   const passwordHash = await hashPassword(password);
   const usuario = await prisma.usuario.create({
     data: {
       nombre,
-      email: usaCorreo ? email : null,
-      username: usaCorreo ? null : username,
+      email,
       passwordHash,
       rol,
+      cuentasPatronBase: {
+        create: {
+          patronbaseEmail: parsed.data.email.trim(),
+          credencialesCifrado: encryptSecret(password),
+          estadoVinculacion: "vinculada",
+          ultimaSincronizacion: new Date(),
+          principal: true,
+        },
+      },
     },
   });
   res.status(201).json({ id: usuario.id, nombre: usuario.nombre, email: usuario.email, username: usuario.username, rol: usuario.rol });

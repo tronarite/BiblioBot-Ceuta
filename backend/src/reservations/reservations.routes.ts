@@ -5,7 +5,7 @@ import {
   crearReservaPuntual,
   getPerformancesForTurno,
   getSeatMapForTurno,
-  listReservationsCacheada,
+  listReservationsVisibles,
 } from "./reservations.service";
 
 export const reservationsRouter = Router();
@@ -14,8 +14,8 @@ reservationsRouter.use(requireAuth, requireCuenta);
 reservationsRouter.get("/", async (req, res) => {
   if (!req.cuentaId) return res.json({ items: { enCurso: [], proximas: [] }, actualizadoEn: null, actualizando: false });
   try {
-    const { datos, actualizadoEn, actualizando } = await listReservationsCacheada(req.cuentaId);
-    res.json({ items: datos, actualizadoEn, actualizando });
+    const { datos, actualizadoEn, actualizando, errores } = await listReservationsVisibles(req.user!.sub, req.cuentaId);
+    res.json({ items: datos, actualizadoEn, actualizando, errores });
   } catch (err) {
     console.error("[reservations] fallo al consultar reservas:", err);
     res.status(502).json({ error: (err as Error).message });

@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider } from "./auth/AuthContext";
+import { CuentaProvider } from "./auth/CuentaContext";
 import { LoginPage } from "./auth/LoginPage";
 import { AdminRoute, ProtectedRoute } from "./auth/ProtectedRoute";
 import { AppLayout } from "./layout/AppLayout";
@@ -13,6 +14,7 @@ export default function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
+        <CuentaProvider>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route element={<ProtectedRoute />}>
@@ -27,6 +29,7 @@ export default function App() {
           </Route>
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
+        </CuentaProvider>
       </AuthProvider>
     </ThemeProvider>
   );

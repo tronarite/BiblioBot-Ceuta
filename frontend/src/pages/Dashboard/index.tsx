@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 import { api } from "../../api/client";
 import { guardarLocal, leerLocal } from "../../api/localCache";
 import { useAuth } from "../../auth/AuthContext";
+import { useCuentas } from "../../auth/CuentaContext";
 import type { Biblioteca, ConCache, DisponibilidadBiblioteca, HorarioExtraordinario, ReservationsResponse } from "../../api/types";
 import { AvailabilityBadge } from "../../components/AvailabilityBadge";
 import { DataFreshness, type EstadoFrescura } from "../../components/DataFreshness";
@@ -21,7 +22,7 @@ const TABS = [
 ] as const;
 
 const VACIO: ReservationsResponse = { enCurso: [], proximas: [] };
-const claveReservas = (usuarioId: string | undefined) => `dash:reservas:${usuarioId ?? "anon"}`;
+const claveReservas = (usuarioId: string | undefined, cuentaId: string | null) => `dash:reservas:${usuarioId ?? "anon"}:${cuentaId ?? ""}`;
 
 // Mientras el servidor responda con una copia en caché que está refrescando en segundo
 // plano ("actualizando"), se vuelve a preguntar cada SONDEO_MS hasta SONDEO_MAX veces
@@ -39,6 +40,7 @@ const ESTADO_INICIAL: EstadoFuente = { cargando: true, error: false, actualizado
 
 export function DashboardPage() {
   const { usuario } = useAuth();
+  const { cuentaActivaId } = useCuentas();
   const [tab, setTab] = useState<(typeof TABS)[number]["id"]>("general");
   const [bibliotecas, setBibliotecas] = useState<Biblioteca[]>([]);
   // Se inicializan con lo último que se vio (localStorage) para que al entrar/recargar el
@@ -47,7 +49,7 @@ export function DashboardPage() {
     () => leerLocal<DisponibilidadBiblioteca[]>("dash:disponibilidad"),
   );
   const [reservas, setReservas] = useState<ReservationsResponse>(
-    () => leerLocal<ReservationsResponse>(claveReservas(usuario?.id)) ?? VACIO,
+    () => leerLocal<ReservationsResponse>(claveReservas(usuario?.id, cuentaActivaId)) ?? VACIO,
   );
   const [horarios, setHorarios] = useState<HorarioExtraordinario[]>([]);
   const [mensaje, setMensaje] = useState<string | null>(null);
@@ -115,7 +117,7 @@ export function DashboardPage() {
       (items) => {
         setErrorReservas(null);
         setReservas(items);
-        guardarLocal(claveReservas(usuario?.id), items);
+        guardarLocal(claveReservas(usuario?.id, cuentaActivaId), items);
       },
       (err) => setErrorReservas(err instanceof Error ? err.message : "No se pudieron consultar tus reservas"),
       gen,

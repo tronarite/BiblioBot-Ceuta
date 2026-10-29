@@ -8,9 +8,7 @@ const inputClass =
 export function UsersAdmin() {
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [nombre, setNombre] = useState("");
-  const [usaCorreo, setUsaCorreo] = useState(true);
   const [email, setEmail] = useState("");
-  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [rol, setRol] = useState<"usuario" | "admin">("usuario");
   const [error, setError] = useState<string | null>(null);
@@ -25,16 +23,9 @@ export function UsersAdmin() {
     e.preventDefault();
     setError(null);
     try {
-      await api.post("/admin/usuarios", {
-        nombre,
-        usaCorreo,
-        password,
-        rol,
-        ...(usaCorreo ? { email } : { username }),
-      });
+      await api.post("/admin/usuarios", { nombre, email, password, rol });
       setNombre("");
       setEmail("");
-      setUsername("");
       setPassword("");
       setRol("usuario");
       cargar();
@@ -76,42 +67,24 @@ export function UsersAdmin() {
             required
             className={`sm:col-span-2 ${inputClass}`}
           />
-          <div className="flex items-center gap-4 sm:col-span-2">
-            <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
-              <input type="radio" checked={usaCorreo} onChange={() => setUsaCorreo(true)} />
-              Usa email
-            </label>
-            <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
-              <input type="radio" checked={!usaCorreo} onChange={() => setUsaCorreo(false)} />
-              Sin email (nombre de usuario)
-            </label>
-          </div>
-          {usaCorreo ? (
-            <input
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              type="email"
-              placeholder="Email"
-              required
-              className={`sm:col-span-2 ${inputClass}`}
-            />
-          ) : (
-            <input
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="Nombre de usuario"
-              required
-              minLength={3}
-              className={`sm:col-span-2 ${inputClass}`}
-            />
-          )}
+          <p className="text-xs text-slate-500 dark:text-slate-400 sm:col-span-2">
+            Se usan el email y la contraseña de PatronBase: son los mismos para entrar en BiblioBot, y esa cuenta queda
+            vinculada como la principal.
+          </p>
+          <input
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            type="email"
+            placeholder="Email de PatronBase"
+            required
+            className={`sm:col-span-2 ${inputClass}`}
+          />
           <input
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             type="password"
-            placeholder="Contraseña temporal"
+            placeholder="Contraseña de PatronBase"
             required
-            minLength={8}
             className={inputClass}
           />
           <select value={rol} onChange={(e) => setRol(e.target.value as "usuario" | "admin")} className={inputClass}>

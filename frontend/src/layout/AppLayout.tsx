@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Link, NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
+import { CuentaSelector } from "./CuentaSelector";
+import { useCuentas } from "../auth/CuentaContext";
 import { ForcePasswordChange } from "../auth/ForcePasswordChange";
 import { useTheme, type Modo } from "../theme/ThemeContext";
 
@@ -66,6 +68,7 @@ function ThemeToggle() {
 export function AppLayout() {
   const { usuario, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const { cuentaActivaId, cargada } = useCuentas();
 
   if (usuario?.debeCambiarPassword) return <ForcePasswordChange />;
 
@@ -92,6 +95,7 @@ export function AppLayout() {
           </div>
 
           <div className="hidden items-center gap-3 text-sm text-slate-600 dark:text-slate-300 sm:flex">
+            <CuentaSelector />
             <ThemeToggle />
             <span>{usuario?.nombre}</span>
             <button
@@ -103,6 +107,7 @@ export function AppLayout() {
           </div>
 
           <div className="flex items-center gap-1 sm:hidden">
+            <CuentaSelector />
             <ThemeToggle />
             <button
               onClick={() => setMenuOpen((v) => !v)}
@@ -155,7 +160,8 @@ export function AppLayout() {
       )}
 
       <main className="mx-auto max-w-6xl px-4 py-6">
-        <Outlet />
+        {/* key: al cambiar de cuenta las páginas se vuelven a montar y recargan sus datos */}
+        {cargada ? <Outlet key={cuentaActivaId ?? "sin-cuenta"} /> : null}
       </main>
     </div>
   );

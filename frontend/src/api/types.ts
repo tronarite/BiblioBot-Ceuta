@@ -103,6 +103,8 @@ export type ReservaPatronBase = {
   asiento: string;
   estado: "en_curso" | "proxima";
   enlacePatronBase: string;
+  cuentaId?: string;
+  cuentaNombre?: string;
 };
 
 export type ReservationsResponse = {
@@ -159,6 +161,16 @@ export type HorarioExtraordinario = {
   id: string;
   texto: string;
   createdAt: string;
+};
+
+export type CuentaPatronBase = {
+  id: string;
+  alias: string | null;
+  patronbaseEmail: string;
+  principal: boolean;
+  estadoVinculacion: "no_vinculada" | "vinculada" | "error";
+  modoReservas: "esta" | "todas" | "seleccionadas";
+  reservasDeCuentas: string[];
 };
 
 export type CuentaPatronBaseStatus = {

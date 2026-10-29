@@ -28,6 +28,9 @@ export type ReservaPatronBase = {
   asiento: string;
   estado: "en_curso" | "proxima";
   enlacePatronBase: string;
+  // Solo en la vista multi-cuenta: de qué cuenta del usuario es la reserva.
+  cuentaId?: string;
+  cuentaNombre?: string;
 };
 
 function normalizarTexto(texto: string): string {
@@ -180,6 +183,48 @@ const claveReservas = (cuentaId: string) => `reservas:${cuentaId}`;
  */
 export async function listReservationsCacheada(cuentaId: string) {
   return conCacheSwr(claveReservas(cuentaId), TTL_RESERVAS_MS, () => listReservations(cuentaId));
+}
+
+/**
+ * Reservas que ve el dashboard según el ajuste de la cuenta activa: solo las suyas
+ * ("esta"), las de todas las cuentas del usuario ("todas") o las de las elegidas
+ * ("seleccionadas", más siempre la activa). Si una cuenta falla no se pierden las demás.
+ */
+export async function listReservationsVisibles(usuarioId: string, cuentaActivaId: string) {
+  const cuentas = await prisma.cuentaPatronBase.findMany({ where: { usuarioId }, orderBy: [{ principal: "desc" }, { createdAt: "asc" }] });
+  const activa = cuentas.find((c) => c.id === cuentaActivaId);
+  if (!activa) return { datos: { enCurso: [], proximas: [] }, actualizadoEn: null, actualizando: false, errores: [] as string[] };
+
+  let ids: string[];
+  if (activa.modoReservas === "todas") ids = cuentas.map((c) => c.id);
+  else if (activa.modoReservas === "seleccionadas") {
+    const elegidas = JSON.parse(activa.reservasDeCuentas) as string[];
+    ids = cuentas.filter((c) => c.id === activa.id || elegidas.includes(c.id)).map((c) => c.id);
+  } else ids = [activa.id];
+
+  const etiqueta = (c: (typeof cuentas)[number]) => c.alias || c.patronbaseEmail;
+  const resultados = await Promise.allSettled(ids.map((id) => listReservationsCacheada(id)));
+  const datos = { enCurso: [] as ReservaPatronBase[], proximas: [] as ReservaPatronBase[] };
+  const errores: string[] = [];
+  let actualizadoEn: string | null = null;
+  let actualizando = false;
+  resultados.forEach((r, i) => {
+    const cuenta = cuentas.find((c) => c.id === ids[i])!;
+    if (r.status === "rejected") {
+      errores.push(`${etiqueta(cuenta)}: ${(r.reason as Error).message}`);
+      return;
+    }
+    const marca = (rs: ReservaPatronBase[]) => rs.map((x) => ({ ...x, cuentaId: cuenta.id, cuentaNombre: etiqueta(cuenta) }));
+    datos.enCurso.push(...marca(r.value.datos.enCurso));
+    datos.proximas.push(...marca(r.value.datos.proximas));
+    if (!actualizadoEn || r.value.actualizadoEn < actualizadoEn) actualizadoEn = r.value.actualizadoEn;
+    actualizando = actualizando || r.value.actualizando;
+  });
+  const porFecha = (a: ReservaPatronBase, b: ReservaPatronBase) => `${a.fecha}${a.horaSesion}`.localeCompare(`${b.fecha}${b.horaSesion}`);
+  datos.enCurso.sort(porFecha);
+  datos.proximas.sort(porFecha);
+  if (resultados.every((r) => r.status === "rejected") && errores.length) throw new Error(errores[0]);
+  return { datos, actualizadoEn, actualizando, errores };
 }
 
 export function invalidarReservas(cuentaId: string) {

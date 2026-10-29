@@ -1,4 +1,5 @@
 import { parseAsiento } from "../../api/seatLabel";
+import { useCuentas } from "../../auth/CuentaContext";
 import type { ReservaPatronBase } from "../../api/types";
 
 const TURNO_ESTILO: Record<"manana" | "tarde", { label: string; classes: string }> = {
@@ -6,7 +7,7 @@ const TURNO_ESTILO: Record<"manana" | "tarde", { label: string; classes: string 
   tarde: { label: "Tarde", classes: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-300" },
 };
 
-function ReservaCard({ reserva }: { reserva: ReservaPatronBase }) {
+function ReservaCard({ reserva, mostrarCuenta }: { reserva: ReservaPatronBase; mostrarCuenta: boolean }) {
   const turno = reserva.turnoTipo ? TURNO_ESTILO[reserva.turnoTipo] : null;
   const asiento = reserva.asiento ? parseAsiento(reserva.asiento) : null;
 
@@ -21,6 +22,9 @@ function ReservaCard({ reserva }: { reserva: ReservaPatronBase }) {
       </div>
 
       <div className="flex-1 p-4">
+        {mostrarCuenta && reserva.cuentaNombre && (
+          <p className="mb-1 text-xs font-medium text-brand-700 dark:text-brand-300">{reserva.cuentaNombre}</p>
+        )}
         <p className="text-base font-semibold leading-tight text-slate-800 dark:text-slate-100">{reserva.bibliotecaNombre}</p>
         <p className="text-sm text-slate-500 dark:text-slate-400">{reserva.plantaNombre}</p>
 
@@ -64,6 +68,8 @@ function ReservaCard({ reserva }: { reserva: ReservaPatronBase }) {
 }
 
 export function ReservationsList({ titulo, reservas, vacio }: { titulo: string; reservas: ReservaPatronBase[]; vacio: string }) {
+  const { cuentaActiva } = useCuentas();
+  const mostrarCuenta = !!cuentaActiva && cuentaActiva.modoReservas !== "esta";
   return (
     <div>
       <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{titulo}</h2>
@@ -76,7 +82,7 @@ export function ReservationsList({ titulo, reservas, vacio }: { titulo: string; 
         // (a pantalla completa o compartiendo espacio con "Ocupación de las bibliotecas").
         <div className="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-3">
           {reservas.map((r) => (
-            <ReservaCard key={r.saleId + r.fecha + r.asiento} reserva={r} />
+            <ReservaCard key={r.saleId + r.fecha + r.asiento} reserva={r} mostrarCuenta={mostrarCuenta} />
           ))}
         </div>
       )}

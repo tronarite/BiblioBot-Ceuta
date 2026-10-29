@@ -1,5 +1,11 @@
 const BASE = "/api";
 
+// Cuenta PatronBase activa: la fija CuentaContext y se envía en cada petición.
+let cuentaActivaId: string | null = null;
+export function setCuentaActiva(id: string | null) {
+  cuentaActivaId = id;
+}
+
 export class ApiError extends Error {
   status: number;
   constructor(status: number, message: string) {
@@ -14,6 +20,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     credentials: "include",
     headers: {
       ...(init?.body ? { "Content-Type": "application/json" } : {}),
+      ...(cuentaActivaId ? { "X-Cuenta-Id": cuentaActivaId } : {}),
       ...init?.headers,
     },
   });
