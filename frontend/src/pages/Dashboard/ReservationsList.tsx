@@ -68,8 +68,8 @@ function ReservaCard({ reserva, mostrarCuenta }: { reserva: ReservaPatronBase; m
 }
 
 export function ReservationsList({ titulo, reservas, vacio }: { titulo: string; reservas: ReservaPatronBase[]; vacio: string }) {
-  const { cuentaActiva } = useCuentas();
-  const mostrarCuenta = !!cuentaActiva && cuentaActiva.modoReservas !== "esta";
+  const { cuentaActiva, vistaTodas } = useCuentas();
+  const mostrarCuenta = vistaTodas || (!!cuentaActiva && cuentaActiva.modoReservas !== "esta");
   return (
     <div>
       <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{titulo}</h2>

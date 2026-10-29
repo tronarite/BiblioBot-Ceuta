@@ -209,13 +209,13 @@ export async function listReservationsCacheada(cuentaId: string) {
  * ("esta"), las de todas las cuentas del usuario ("todas") o las de las elegidas
  * ("seleccionadas", más siempre la activa). Si una cuenta falla no se pierden las demás.
  */
-export async function listReservationsVisibles(usuarioId: string, cuentaActivaId: string) {
+export async function listReservationsVisibles(usuarioId: string, cuentaActivaId: string, todas = false) {
   const cuentas = await prisma.cuentaPatronBase.findMany({ where: { usuarioId }, orderBy: [{ principal: "desc" }, { createdAt: "asc" }] });
   const activa = cuentas.find((c) => c.id === cuentaActivaId);
   if (!activa) return { datos: { enCurso: [], proximas: [] }, actualizadoEn: null, actualizando: false, errores: [] as string[] };
 
   let ids: string[];
-  if (activa.modoReservas === "todas") ids = cuentas.map((c) => c.id);
+  if (todas || activa.modoReservas === "todas") ids = cuentas.map((c) => c.id);
   else if (activa.modoReservas === "seleccionadas") {
     const elegidas = JSON.parse(activa.reservasDeCuentas) as string[];
     ids = cuentas.filter((c) => c.id === activa.id || elegidas.includes(c.id)).map((c) => c.id);

@@ -13,7 +13,7 @@ schedulesRouter.use((req, res, next) => {
 });
 
 schedulesRouter.get("/", async (req, res) => {
-  const items = await listSchedules(req.user!.sub, req.cuentaId!);
+  const items = await listSchedules(req.user!.sub, req.cuentaId!, req.todasCuentas);
   res.json(items);
 });
 
@@ -30,6 +30,7 @@ const crearSchema = z.object({
 });
 
 schedulesRouter.post("/", async (req, res) => {
+  if (req.todasCuentas) return res.status(422).json({ error: "Elige una cuenta concreta para crear la programación" });
   const parsed = crearSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Datos inválidos", detalles: parsed.error.flatten() });
   try {

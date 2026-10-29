@@ -1,12 +1,14 @@
 import { Fragment, useEffect, useState } from "react";
 import { api } from "../../api/client";
 import { useAuth } from "../../auth/AuthContext";
+import { useCuentas } from "../../auth/CuentaContext";
 import type { Biblioteca, Programacion } from "../../api/types";
 import { ScheduleCard } from "../../components/ScheduleCard";
 import { ScheduleWizard } from "./ScheduleWizard";
 
 export function ProgramacionesPage() {
   const { usuario } = useAuth();
+  const { vistaTodas } = useCuentas();
   const [programaciones, setProgramaciones] = useState<Programacion[]>([]);
   const [bibliotecas, setBibliotecas] = useState<Biblioteca[]>([]);
   const [wizardTarget, setWizardTarget] = useState<"nueva" | Programacion | null>(null);
@@ -55,7 +57,9 @@ export function ProgramacionesPage() {
         <h1 className="text-xl font-semibold text-slate-800 dark:text-slate-100">Programaciones</h1>
         <button
           onClick={() => setWizardTarget("nueva")}
-          className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
+          disabled={vistaTodas}
+          title={vistaTodas ? "Elige una cuenta concreta para crear una programación" : undefined}
+          className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
           Nueva programación
         </button>

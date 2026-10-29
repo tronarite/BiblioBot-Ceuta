@@ -8,6 +8,7 @@ declare global {
     interface Request {
       user?: JwtPayload;
       cuentaId?: string; // cuenta PatronBase activa (ver requireCuenta)
+      todasCuentas?: boolean; // vista virtual "todas las cuentas" (solo lectura)
     }
   }
 }
@@ -36,10 +37,14 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction) {
  * Resuelve la cuenta PatronBase activa de la petición: la de la cabecera X-Cuenta-Id (que
  * debe pertenecer al usuario autenticado) o, si no viene, su cuenta principal. Si el usuario
  * aún no tiene ninguna cuenta, req.cuentaId queda sin definir.
+ * X-Cuenta-Id: todas es una vista virtual que junta las cuentas del usuario, solo para leer:
+ * req.todasCuentas queda a true y req.cuentaId es la principal (las escrituras la rechazan).
  */
 export async function requireCuenta(req: Request, res: Response, next: NextFunction) {
   try {
-    const pedida = req.header("x-cuenta-id");
+    const cabecera = req.header("x-cuenta-id");
+    req.todasCuentas = cabecera === "todas";
+    const pedida = req.todasCuentas ? undefined : cabecera;
     const cuenta = pedida
       ? await prisma.cuentaPatronBase.findFirst({ where: { id: pedida, usuarioId: req.user!.sub } })
       : await prisma.cuentaPatronBase.findFirst({

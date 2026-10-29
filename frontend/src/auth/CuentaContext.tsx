@@ -7,6 +7,10 @@ type CuentaState = {
   cuentas: CuentaPatronBase[];
   cuentaActiva: CuentaPatronBase | null;
   cuentaActivaId: string | null;
+  /** Vista virtual "Todas las cuentas": solo lectura, junta reservas y programaciones de todas. */
+  vistaTodas: boolean;
+  /** Identifica la vista actual ("todas" o el id de la cuenta); sirve de key y de clave de caché. */
+  claveVista: string | null;
   cargada: boolean;
   seleccionar: (id: string) => void;
   recargar: () => Promise<void>;
@@ -14,6 +18,7 @@ type CuentaState = {
 
 const CuentaContext = createContext<CuentaState | null>(null);
 const CLAVE = "bibliobot:cuentaActiva";
+export const VISTA_TODAS = "todas";
 
 function leerGuardada(): string | null {
   try {
@@ -45,14 +50,19 @@ export function CuentaProvider({ children }: { children: ReactNode }) {
   }, [recargar]);
 
   // Si la guardada ya no existe (o no hay ninguna), se usa la principal.
+  // En la vista "todas" la cuenta activa es la principal (para lo que necesita una real), pero
+  // solo si hay varias cuentas: con una sola no hay nada que juntar.
+  const vistaTodas = activaId === VISTA_TODAS && cuentas.length > 1;
   const cuentaActiva = useMemo(
-    () => cuentas.find((c) => c.id === activaId) ?? cuentas.find((c) => c.principal) ?? cuentas[0] ?? null,
-    [cuentas, activaId],
+    () =>
+      (vistaTodas ? null : cuentas.find((c) => c.id === activaId)) ?? cuentas.find((c) => c.principal) ?? cuentas[0] ?? null,
+    [cuentas, activaId, vistaTodas],
   );
   const cuentaActivaId = cuentaActiva?.id ?? null;
+  const claveVista = vistaTodas ? VISTA_TODAS : cuentaActivaId;
 
   // Síncrono en render para que las peticiones de los hijos ya lleven la cabecera.
-  setCuentaActiva(cuentaActivaId);
+  setCuentaActiva(claveVista);
 
   const seleccionar = useCallback((id: string) => {
     setActivaId(id);
@@ -64,7 +74,7 @@ export function CuentaProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <CuentaContext.Provider value={{ cuentas, cuentaActiva, cuentaActivaId, cargada, seleccionar, recargar }}>
+    <CuentaContext.Provider value={{ cuentas, cuentaActiva, cuentaActivaId, vistaTodas, claveVista, cargada, seleccionar, recargar }}>
       {children}
     </CuentaContext.Provider>
   );
