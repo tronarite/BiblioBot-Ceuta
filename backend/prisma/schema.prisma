@@ -50,6 +50,8 @@ model CuentaPatronBase {
   alias                String?
   modoReservas         String    @default("esta")
   reservasDeCuentas    String    @default("[]") // JSON array de ids de CuentaPatronBase
+  modoProgramaciones   String    @default("esta") // igual que modoReservas, para la lista de programaciones
+  programacionesDeCuentas String @default("[]") // JSON array de ids de CuentaPatronBase
   patronbaseEmail      String
   credencialesCifrado  String
   estadoVinculacion    String    @default("no_vinculada")

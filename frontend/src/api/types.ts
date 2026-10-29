@@ -128,6 +128,8 @@ export type Programacion = {
   proximaEjecucion: string | null;
   biblioteca: Biblioteca;
   planta: Planta;
+  cuentaId?: string | null;
+  cuentaNombre?: string;
 };
 
 export type EstadoSistema = {
@@ -171,6 +173,8 @@ export type CuentaPatronBase = {
   estadoVinculacion: "no_vinculada" | "vinculada" | "error";
   modoReservas: "esta" | "todas" | "seleccionadas";
   reservasDeCuentas: string[];
+  modoProgramaciones: "esta" | "todas" | "seleccionadas";
+  programacionesDeCuentas: string[];
 };
 
 export type CuentaPatronBaseStatus = {

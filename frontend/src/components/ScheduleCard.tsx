@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useCuentas } from "../auth/CuentaContext";
 import type { Programacion } from "../api/types";
 
 // Índice = día de la semana según Date.getDay() (0 = domingo); ORDEN_SEMANA solo
@@ -28,6 +29,8 @@ export function ScheduleCard({
   onRename: (nombre: string) => void;
   onEdit: () => void;
 }) {
+  const { cuentaActiva } = useCuentas();
+  const mostrarCuenta = !!cuentaActiva && cuentaActiva.modoProgramaciones !== "esta" && !!programacion.cuentaNombre;
   const turnos = JSON.parse(programacion.turnos) as string[];
   const diasSemana = JSON.parse(programacion.diasSemana) as number[];
   let asientos: string[] = [];
@@ -79,6 +82,9 @@ export function ScheduleCard({
             >
               {nombreMostrado}
             </button>
+          )}
+          {mostrarCuenta && (
+            <p className="text-xs font-medium text-brand-700 dark:text-brand-300">{programacion.cuentaNombre}</p>
           )}
           <p className="text-sm text-slate-500 dark:text-slate-400">
             {programacion.biblioteca.nombre} · {programacion.planta.nombre} ·{" "}

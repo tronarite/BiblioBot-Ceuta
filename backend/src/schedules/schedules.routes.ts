@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
+import { prisma } from "../db";
 import { requireAuth, requireCuenta } from "../auth/auth.middleware";
 import { listActivity } from "../activity/activity.service";
 import { createSchedule, deleteSchedule, getSchedule, listSchedules, setEstado, updateSchedule } from "./schedules.service";
@@ -12,7 +13,7 @@ schedulesRouter.use((req, res, next) => {
 });
 
 schedulesRouter.get("/", async (req, res) => {
-  const items = await listSchedules(req.cuentaId!);
+  const items = await listSchedules(req.user!.sub, req.cuentaId!);
   res.json(items);
 });
 
@@ -59,9 +60,9 @@ schedulesRouter.patch("/:id", async (req, res) => {
   if (!parsed.success) return res.status(400).json({ error: "Datos inválidos", detalles: parsed.error.flatten() });
   const { estado, ...resto } = parsed.data;
   try {
-    if (estado !== undefined) await setEstado(req.params.id, req.cuentaId!, estado);
-    if (Object.keys(resto).length > 0) await updateSchedule(req.params.id, req.cuentaId!, resto);
-    const actualizada = await getSchedule(req.params.id, req.cuentaId!);
+    if (estado !== undefined) await setEstado(req.params.id, req.user!.sub, estado);
+    if (Object.keys(resto).length > 0) await updateSchedule(req.params.id, req.user!.sub, resto);
+    const actualizada = await getSchedule(req.params.id, req.user!.sub);
     if (!actualizada) return res.status(404).json({ error: "Programación no encontrada" });
     res.json(actualizada);
   } catch (err) {
@@ -70,11 +71,13 @@ schedulesRouter.patch("/:id", async (req, res) => {
 });
 
 schedulesRouter.delete("/:id", async (req, res) => {
-  await deleteSchedule(req.params.id, req.cuentaId!);
+  await deleteSchedule(req.params.id, req.user!.sub);
   res.status(204).send();
 });
 
 schedulesRouter.get("/:id/activity", async (req, res) => {
-  const items = await listActivity({ cuentaId: req.cuentaId!, programacionId: req.params.id });
+  const programacion = await prisma.programacion.findFirst({ where: { id: req.params.id, cuenta: { usuarioId: req.user!.sub } } });
+  if (!programacion?.cuentaId) return res.status(404).json({ error: "Programación no encontrada" });
+  const items = await listActivity({ cuentaId: programacion.cuentaId, programacionId: programacion.id });
   res.json(items);
 });

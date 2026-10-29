@@ -43,6 +43,8 @@ const ajustesSchema = z.object({
   alias: z.string().trim().max(40).nullable().optional(),
   modoReservas: z.enum(["esta", "todas", "seleccionadas"]).optional(),
   reservasDeCuentas: z.array(z.string()).max(10).optional(),
+  modoProgramaciones: z.enum(["esta", "todas", "seleccionadas"]).optional(),
+  programacionesDeCuentas: z.array(z.string()).max(10).optional(),
 });
 
 patronbaseAccountRouter.patch("/cuentas/:id", async (req, res) => {

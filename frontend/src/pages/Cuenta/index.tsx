@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { api } from "../../api/client";
 import { useAuth } from "../../auth/AuthContext";
 import { ActivityLog } from "./ActivityLog";
-import { PatronBaseLink } from "./PatronBaseLink";
+import { PatronBaseLink, VisibilidadCuentas } from "./PatronBaseLink";
 import { VisibleLibraries } from "./VisibleLibraries";
 
 const inputClass =
@@ -94,6 +94,7 @@ export function CuentaPage() {
       </div>
 
       <PatronBaseLink />
+      <VisibilidadCuentas />
       <VisibleLibraries />
       <ActivityLog />
     </div>

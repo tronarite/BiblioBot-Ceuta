@@ -102,18 +102,33 @@ function CuentaFila({ cuenta, soloUna, onCambio }: { cuenta: CuentaPatronBase; s
   );
 }
 
-function AjustesReservas({
+type Campo = "reservas" | "programaciones";
+
+const CAMPOS: Record<Campo, { modo: "modoReservas" | "modoProgramaciones"; lista: "reservasDeCuentas" | "programacionesDeCuentas"; titulo: string; ayuda: string }> = {
+  reservas: { modo: "modoReservas", lista: "reservasDeCuentas", titulo: "Reservas del dashboard", ayuda: "En curso y próximas." },
+  programaciones: {
+    modo: "modoProgramaciones",
+    lista: "programacionesDeCuentas",
+    titulo: "Programaciones",
+    ayuda: "La lista de la pestaña Programaciones. Las nuevas se crean siempre en la cuenta activa.",
+  },
+};
+
+function GrupoVisibilidad({
+  campo,
   cuentaActiva,
   cuentas,
   onCambio,
 }: {
+  campo: Campo;
   cuentaActiva: CuentaPatronBase;
   cuentas: CuentaPatronBase[];
   onCambio: () => Promise<void>;
 }) {
   const [error, setError] = useState<string | null>(null);
+  const { modo, lista, titulo, ayuda } = CAMPOS[campo];
 
-  async function guardar(datos: Partial<Pick<CuentaPatronBase, "modoReservas" | "reservasDeCuentas">>) {
+  async function guardar(datos: Record<string, unknown>) {
     setError(null);
     try {
       await api.patch(`/account/patronbase/cuentas/${cuentaActiva.id}`, datos);
@@ -125,33 +140,27 @@ function AjustesReservas({
 
   const otras = cuentas.filter((c) => c.id !== cuentaActiva.id);
   return (
-    <div className="mt-5 border-t border-slate-100 pt-4 dark:border-slate-700">
-      <h3 className="mb-1 text-sm font-medium text-slate-800 dark:text-slate-100">
-        Reservas que se muestran con «{nombreCuenta(cuentaActiva)}» activa
-      </h3>
-      <p className="mb-2 text-xs text-slate-500 dark:text-slate-400">
-        Afecta al dashboard (en curso y próximas). Las programaciones siempre son de cada cuenta.
-      </p>
+    <div>
+      <h3 className="text-sm font-medium text-slate-800 dark:text-slate-100">{titulo}</h3>
+      <p className="mb-2 text-xs text-slate-500 dark:text-slate-400">{ayuda}</p>
       <div className="space-y-1">
         {MODOS.map((m) => (
           <label key={m.valor} className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
-            <input type="radio" checked={cuentaActiva.modoReservas === m.valor} onChange={() => guardar({ modoReservas: m.valor })} />
+            <input type="radio" name={`${campo}-${cuentaActiva.id}`} checked={cuentaActiva[modo] === m.valor} onChange={() => guardar({ [modo]: m.valor })} />
             {m.label}
           </label>
         ))}
       </div>
-      {cuentaActiva.modoReservas === "seleccionadas" && (
+      {cuentaActiva[modo] === "seleccionadas" && (
         <div className="mt-2 space-y-1 pl-6">
           {otras.map((c) => (
             <label key={c.id} className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
               <input
                 type="checkbox"
-                checked={cuentaActiva.reservasDeCuentas.includes(c.id)}
+                checked={cuentaActiva[lista].includes(c.id)}
                 onChange={(e) =>
                   guardar({
-                    reservasDeCuentas: e.target.checked
-                      ? [...cuentaActiva.reservasDeCuentas, c.id]
-                      : cuentaActiva.reservasDeCuentas.filter((x) => x !== c.id),
+                    [lista]: e.target.checked ? [...cuentaActiva[lista], c.id] : cuentaActiva[lista].filter((x) => x !== c.id),
                   })
                 }
               />
@@ -165,8 +174,34 @@ function AjustesReservas({
   );
 }
 
+/** Qué se ve en el dashboard y en Programaciones cuando una cuenta concreta está activa. */
+export function VisibilidadCuentas() {
+  const { cuentas, cuentaActiva, recargar } = useCuentas();
+  const { refresh } = useAuth();
+  if (!cuentaActiva || cuentas.length < 2) return null;
+
+  async function actualizar() {
+    await recargar();
+    await refresh();
+  }
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-800">
+      <h2 className="font-medium text-slate-800 dark:text-slate-100">Qué se muestra</h2>
+      <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
+        Ajuste de la cuenta activa: <span className="font-medium">{nombreCuenta(cuentaActiva)}</span>. Cada cuenta tiene el suyo; cambia de
+        cuenta en el selector de arriba para ajustar otra.
+      </p>
+      <div className="space-y-5">
+        <GrupoVisibilidad campo="reservas" cuentaActiva={cuentaActiva} cuentas={cuentas} onCambio={actualizar} />
+        <GrupoVisibilidad campo="programaciones" cuentaActiva={cuentaActiva} cuentas={cuentas} onCambio={actualizar} />
+      </div>
+    </div>
+  );
+}
+
 export function PatronBaseLink() {
-  const { cuentas, cuentaActiva, cargada, recargar, seleccionar } = useCuentas();
+  const { cuentas, cargada, recargar, seleccionar } = useCuentas();
   const { refresh } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -209,7 +244,10 @@ export function PatronBaseLink() {
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-800">
-      <h2 className="mb-3 font-medium text-slate-800 dark:text-slate-100">Cuentas PatronBase</h2>
+      <h2 className="font-medium text-slate-800 dark:text-slate-100">Mis cuentas de PatronBase</h2>
+      <p className="mb-3 text-sm text-slate-500 dark:text-slate-400">
+        Puedes usar varias cuentas de PatronBase desde el mismo acceso a BiblioBot y cambiar entre ellas con el selector de arriba.
+      </p>
 
       {sinCuentas && (
         <p className="mb-3 text-sm text-slate-500 dark:text-slate-400">
@@ -223,12 +261,10 @@ export function PatronBaseLink() {
         ))}
       </div>
 
-      {cuentaActiva && cuentas.length > 1 && <AjustesReservas cuentaActiva={cuentaActiva} cuentas={cuentas} onCambio={actualizar} />}
-
-      <div className="mt-4">
+      <div className="mt-4 border-t border-slate-100 pt-4 dark:border-slate-700">
         {!sinCuentas && !mostrarFormulario ? (
           <button type="button" onClick={() => setMostrarFormulario(true)} className={botonSecundario}>
-            + Añadir otra cuenta
+            + Vincular otra cuenta de PatronBase
           </button>
         ) : (
           <form onSubmit={anadir} className="grid max-w-md gap-3">
