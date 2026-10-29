@@ -5,7 +5,7 @@ import { logActivity } from "../activity/activity.service";
 import { getAuthenticatedSession } from "../patronbaseAccount/account.service";
 import { coincideAsiento, confirmSeats, getCart, getPerformances, getSeatMap, holdSeat, checkout as patronbaseCheckout } from "../patronbase/adapter";
 import { addDays, fechaLocalISO, formatearFechaEs, labelMatchesDate, startOfDay } from "../libraries/dateEs";
-import { invalidarReservas } from "../reservations/reservations.service";
+import { invalidarReservas, tieneReservaReal } from "../reservations/reservations.service";
 import { instanteApertura, type TurnoTipo } from "./apertura";
 import { diaTurnoPermitido } from "./rules";
 import { agregarFecha, leerFechas } from "./fechasProgramacion";
@@ -177,6 +177,34 @@ async function procesarTurno(programacion: ProgramacionConRelaciones, turnoTipo:
     intentadoFueraDeVentana.add(clave);
   } else if (!debeIntentarAhora(clave)) {
     return;
+  }
+
+  // Si la cuenta ya tiene en PatronBase una reserva para esa sala, turno y día (hecha a
+  // mano, desde otra programación o antes de crear esta), no hay nada que intentar: el
+  // asiento aparecería ocupado por ella misma y se registraría un fallo que no es real.
+  try {
+    const yaReservada = await tieneReservaReal(programacion.cuentaId!, {
+      bibliotecaNombre: programacion.biblioteca.nombre,
+      plantaNombre: programacion.planta.nombre,
+      turnoTipo,
+      fechaISO: fechaObjetivoStr,
+    });
+    if (yaReservada) {
+      const valor = agregarFecha(programacion[campoExito], fechaObjetivoStr);
+      await prisma.programacion.update({ where: { id: programacion.id }, data: { [campoExito]: valor } });
+      (programacion as Record<string, unknown>)[campoExito] = valor;
+      await logActivity({
+        usuarioId: programacion.usuarioId,
+        cuentaId: programacion.cuentaId,
+        programacionId: programacion.id,
+        tipoEvento: "otro",
+        mensaje: `Ya tenías una reserva para el ${formatearFechaEs(fechaObjetivo)} (${turnoTipo}) en ${programacion.planta.nombre}: no hace falta reservar`,
+      });
+      return;
+    }
+  } catch (err) {
+    // Si no se puede leer el historial se intenta reservar igualmente, como antes.
+    console.warn("[engine] no se pudo comprobar las reservas existentes:", (err as Error).message);
   }
 
   const resultado = await intentarTurno(programacion, turnoTipo, fechaObjetivo);

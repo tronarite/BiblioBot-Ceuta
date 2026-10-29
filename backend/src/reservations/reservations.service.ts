@@ -14,7 +14,7 @@ import {
 } from "../patronbase/adapter";
 import { PatronBaseSession } from "../patronbase/session";
 import { withAccountLock } from "../patronbase/accountLock";
-import { addDays, parseSpanishDate, startOfDay } from "../libraries/dateEs";
+import { addDays, fechaLocalISO, parseSpanishDate, startOfDay } from "../libraries/dateEs";
 import { conCacheSwr, invalidarCache } from "../libraries/cache";
 
 export type ReservaPatronBase = {
@@ -169,6 +169,25 @@ export async function listReservations(cuentaId: string): Promise<{ enCurso: Res
     enCurso: resultados.filter((r) => r.estado === "en_curso"),
     proximas: resultados.filter((r) => r.estado === "proxima"),
   };
+}
+
+/**
+ * ¿Tiene ya esta cuenta una reserva real en PatronBase para esa sala, turno y día? Consulta
+ * el historial en vivo (no la tabla local Reserva ni la caché), así cuenta también lo
+ * reservado a mano en PatronBase o desde otra programación.
+ */
+export async function tieneReservaReal(
+  cuentaId: string,
+  destino: { bibliotecaNombre: string; plantaNombre: string; turnoTipo: "manana" | "tarde"; fechaISO: string },
+): Promise<boolean> {
+  const { enCurso, proximas } = await listReservations(cuentaId);
+  return [...enCurso, ...proximas].some(
+    (r) =>
+      r.bibliotecaNombre === destino.bibliotecaNombre &&
+      r.plantaNombre === destino.plantaNombre &&
+      r.turnoTipo === destino.turnoTipo &&
+      fechaLocalISO(new Date(r.fecha)) === destino.fechaISO,
+  );
 }
 
 const TTL_RESERVAS_MS = 90 * 1000;
