@@ -108,13 +108,13 @@ async function resolverTurno(tituloProduccion: string) {
  * permite comprar con más de un día de antelación, así que cualquier sesión futura o en
  * curso viene necesariamente de una compra hecha hoy o ayer.
  */
-export async function listReservations(usuarioId: string): Promise<{ enCurso: ReservaPatronBase[]; proximas: ReservaPatronBase[] }> {
-  const cuenta = await prisma.cuentaPatronBase.findUnique({ where: { usuarioId } });
+export async function listReservations(cuentaId: string): Promise<{ enCurso: ReservaPatronBase[]; proximas: ReservaPatronBase[] }> {
+  const cuenta = await prisma.cuentaPatronBase.findUnique({ where: { id: cuentaId } });
   if (!cuenta || cuenta.estadoVinculacion !== "vinculada") {
     return { enCurso: [], proximas: [] };
   }
 
-  const session = await getAuthenticatedSession(usuarioId);
+  const session = await getAuthenticatedSession(cuentaId);
   const historial = await getSalesHistory(session);
 
   const hoy = startOfDay(new Date());
@@ -169,7 +169,7 @@ export async function listReservations(usuarioId: string): Promise<{ enCurso: Re
 }
 
 const TTL_RESERVAS_MS = 90 * 1000;
-const claveReservas = (usuarioId: string) => `reservas:${usuarioId}`;
+const claveReservas = (cuentaId: string) => `reservas:${cuentaId}`;
 
 /**
  * Versión cacheada (stale-while-revalidate, persistida) de listReservations: leer el
@@ -178,12 +178,12 @@ const claveReservas = (usuarioId: string) => `reservas:${usuarioId}`;
  * segundo plano. Se invalida al crear una reserva (manual o del motor) para no mostrar
  * datos viejos justo después.
  */
-export async function listReservationsCacheada(usuarioId: string) {
-  return conCacheSwr(claveReservas(usuarioId), TTL_RESERVAS_MS, () => listReservations(usuarioId));
+export async function listReservationsCacheada(cuentaId: string) {
+  return conCacheSwr(claveReservas(cuentaId), TTL_RESERVAS_MS, () => listReservations(cuentaId));
 }
 
-export function invalidarReservas(usuarioId: string) {
-  invalidarCache(claveReservas(usuarioId));
+export function invalidarReservas(cuentaId: string) {
+  invalidarCache(claveReservas(cuentaId));
 }
 
 export async function getPerformancesForTurno(turnoId: string) {
@@ -211,6 +211,7 @@ type SeatSelection = {
 
 export async function crearReservaPuntual(params: {
   usuarioId: string;
+  cuentaId: string;
   turnoId: string;
   perfId: string;
   fecha: Date;
@@ -219,11 +220,11 @@ export async function crearReservaPuntual(params: {
   const turno = await prisma.turno.findUnique({ where: { id: params.turnoId }, include: { planta: true } });
   if (!turno) throw new Error("Turno no encontrado");
 
-  const cuenta = await prisma.cuentaPatronBase.findUnique({ where: { usuarioId: params.usuarioId } });
+  const cuenta = await prisma.cuentaPatronBase.findUnique({ where: { id: params.cuentaId } });
   if (!cuenta) throw new Error("No tienes una cuenta PatronBase vinculada");
 
   return withAccountLock(cuenta.id, async () => {
-    const session = await getAuthenticatedSession(params.usuarioId);
+    const session = await getAuthenticatedSession(params.cuentaId);
 
     // Importante: el confirmHref se obtiene de ESTA carga del mapa, la misma que
     // precede al hold. Volver a pedir el mapa después de retener el asiento resetea
@@ -234,6 +235,7 @@ export async function crearReservaPuntual(params: {
     if (!held) {
       await logActivity({
         usuarioId: params.usuarioId,
+        cuentaId: params.cuentaId,
         tipoEvento: "reserva_fallida",
         mensaje: `No se pudo retener el asiento ${params.seat.label} en ${turno.planta.nombre}`,
       });
@@ -248,6 +250,7 @@ export async function crearReservaPuntual(params: {
     if (cart.isEmpty || !cart.checkoutAction) {
       await logActivity({
         usuarioId: params.usuarioId,
+        cuentaId: params.cuentaId,
         tipoEvento: "reserva_fallida",
         mensaje: `La cesta quedó vacía al intentar reservar ${params.seat.label}`,
       });
@@ -258,6 +261,7 @@ export async function crearReservaPuntual(params: {
     if (!saleId) {
       await logActivity({
         usuarioId: params.usuarioId,
+        cuentaId: params.cuentaId,
         tipoEvento: "reserva_fallida",
         mensaje: `El checkout de ${params.seat.label} no devolvió número de pedido; puede no haberse completado`,
       });
@@ -267,6 +271,7 @@ export async function crearReservaPuntual(params: {
     const reserva = await prisma.reserva.create({
       data: {
         usuarioId: params.usuarioId,
+        cuentaId: params.cuentaId,
         bibliotecaId: turno.planta.bibliotecaId,
         plantaId: turno.plantaId,
         turnoId: turno.id,
@@ -280,11 +285,12 @@ export async function crearReservaPuntual(params: {
 
     await logActivity({
       usuarioId: params.usuarioId,
+      cuentaId: params.cuentaId,
       tipoEvento: "reserva_exitosa",
       mensaje: `Reserva confirmada: ${params.seat.label} en ${turno.planta.nombre} (${turno.tipo})`,
     });
 
-    invalidarReservas(params.usuarioId);
+    invalidarReservas(params.cuentaId);
     return reserva;
   });
 }

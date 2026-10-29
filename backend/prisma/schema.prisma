@@ -30,7 +30,7 @@ model Usuario {
   bibliotecasOcultas  String    @default("[]") // JSON array de ids de Biblioteca ocultas en el dashboard de este usuario
   debeCambiarPassword Boolean   @default(false) // true tras un restablecimiento por un admin: se fuerza el cambio al entrar
 
-  cuentaPatronBase    CuentaPatronBase?
+  cuentasPatronBase   CuentaPatronBase[]
   reservas            Reserva[]
   programaciones      Programacion[]
   actividad           ActividadLog[]
@@ -38,15 +38,29 @@ model Usuario {
   horariosCreados     HorarioExtraordinario[]
 }
 
+// Un usuario (login de BiblioBot) tiene una cuenta PatronBase principal y, opcionalmente,
+// varias secundarias. Reservas, programaciones y actividad cuelgan de la cuenta, no del usuario.
+// ModoReservas: "esta" | "todas" | "seleccionadas" (qué reservas muestra el dashboard
+// cuando esta es la cuenta activa; "seleccionadas" usa reservasDeCuentas).
 model CuentaPatronBase {
   id                   String    @id @default(cuid())
-  usuarioId            String    @unique
+  usuarioId            String
   usuario              Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  principal            Boolean   @default(false)
+  alias                String?
+  modoReservas         String    @default("esta")
+  reservasDeCuentas    String    @default("[]") // JSON array de ids de CuentaPatronBase
   patronbaseEmail      String
   credencialesCifrado  String
   estadoVinculacion    String    @default("no_vinculada")
   ultimaSincronizacion DateTime?
   createdAt            DateTime  @default(now())
+
+  reservas             Reserva[]
+  programaciones       Programacion[]
+  actividad            ActividadLog[]
+
+  @@index([usuarioId])
 }
 
 model Biblioteca {
@@ -87,6 +101,8 @@ model Reserva {
   id                  String        @id @default(cuid())
   usuarioId           String
   usuario             Usuario       @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  cuentaId            String?
+  cuenta              CuentaPatronBase? @relation(fields: [cuentaId], references: [id], onDelete: Cascade)
   bibliotecaId        String
   biblioteca          Biblioteca    @relation(fields: [bibliotecaId], references: [id])
   plantaId            String
@@ -108,6 +124,8 @@ model Programacion {
   nombre                      String?
   usuarioId                   String
   usuario                     Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  cuentaId                    String?
+  cuenta                      CuentaPatronBase? @relation(fields: [cuentaId], references: [id], onDelete: Cascade)
   bibliotecaId                String
   biblioteca                  Biblioteca @relation(fields: [bibliotecaId], references: [id])
   plantaId                    String
@@ -146,6 +164,8 @@ model ActividadLog {
   id              String         @id @default(cuid())
   usuarioId       String
   usuario         Usuario        @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  cuentaId        String?
+  cuenta          CuentaPatronBase? @relation(fields: [cuentaId], references: [id], onDelete: Cascade)
   programacionId  String?
   programacion    Programacion?  @relation(fields: [programacionId], references: [id])
   tipoEvento      String

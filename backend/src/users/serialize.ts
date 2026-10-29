@@ -8,10 +8,13 @@ import { prisma } from "../db";
  *   está en "error" (credenciales caducadas → todas sus programaciones fallarían en silencio).
  */
 export async function serializeUsuario(usuario: Usuario) {
-  const cuenta = await prisma.cuentaPatronBase.findUnique({
+  const cuentas = await prisma.cuentaPatronBase.findMany({
     where: { usuarioId: usuario.id },
+    orderBy: [{ principal: "desc" }, { createdAt: "asc" }],
     select: { estadoVinculacion: true },
   });
+  // Estado global: "error" si alguna cuenta falla, para avisar aunque no sea la activa.
+  const cuenta = cuentas.find((c) => c.estadoVinculacion === "error") ?? cuentas[0];
   return {
     id: usuario.id,
     nombre: usuario.nombre,

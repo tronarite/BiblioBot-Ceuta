@@ -1,4 +1,5 @@
 import { NextFunction, Request, Response } from "express";
+import { prisma } from "../db";
 import { AUTH_COOKIE_NAME, JwtPayload, verifyToken } from "./auth.service";
 
 declare global {
@@ -6,6 +7,7 @@ declare global {
   namespace Express {
     interface Request {
       user?: JwtPayload;
+      cuentaId?: string; // cuenta PatronBase activa (ver requireCuenta)
     }
   }
 }
@@ -28,4 +30,26 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction) {
     return res.status(403).json({ error: "Requiere permisos de administrador" });
   }
   next();
+}
+
+/**
+ * Resuelve la cuenta PatronBase activa de la petición: la de la cabecera X-Cuenta-Id (que
+ * debe pertenecer al usuario autenticado) o, si no viene, su cuenta principal. Si el usuario
+ * aún no tiene ninguna cuenta, req.cuentaId queda sin definir.
+ */
+export async function requireCuenta(req: Request, res: Response, next: NextFunction) {
+  try {
+    const pedida = req.header("x-cuenta-id");
+    const cuenta = pedida
+      ? await prisma.cuentaPatronBase.findFirst({ where: { id: pedida, usuarioId: req.user!.sub } })
+      : await prisma.cuentaPatronBase.findFirst({
+          where: { usuarioId: req.user!.sub },
+          orderBy: [{ principal: "desc" }, { createdAt: "asc" }],
+        });
+    if (pedida && !cuenta) return res.status(404).json({ error: "Cuenta no encontrada" });
+    req.cuentaId = cuenta?.id;
+    next();
+  } catch (err) {
+    next(err);
+  }
 }

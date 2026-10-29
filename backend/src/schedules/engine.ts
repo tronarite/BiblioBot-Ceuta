@@ -74,7 +74,7 @@ async function intentarTurno(
 
   let session;
   try {
-    session = await getAuthenticatedSession(programacion.usuarioId);
+    session = await getAuthenticatedSession(programacion.cuentaId!);
   } catch (err) {
     return { exito: false, motivo: `No se pudo autenticar en PatronBase: ${(err as Error).message}` };
   }
@@ -106,6 +106,7 @@ async function intentarTurno(
     await prisma.reserva.create({
       data: {
         usuarioId: programacion.usuarioId,
+        cuentaId: programacion.cuentaId,
         bibliotecaId: programacion.bibliotecaId,
         plantaId: programacion.plantaId,
         turnoId: turno.id,
@@ -118,7 +119,7 @@ async function intentarTurno(
       },
     });
 
-    invalidarReservas(programacion.usuarioId);
+    invalidarReservas(programacion.cuentaId!);
     return { exito: true, motivo: `Reservado ${codigo} en ${programacion.planta.nombre} (${turnoTipo})` };
   }
 
@@ -143,6 +144,7 @@ async function procesarTurno(programacion: ProgramacionConRelaciones, turnoTipo:
     const existente = await prisma.reserva.findFirst({
       where: {
         usuarioId: programacion.usuarioId,
+        cuentaId: programacion.cuentaId,
         turnoId: turno.id,
         fecha: { gte: inicio, lt: addDays(inicio, 1) },
       },
@@ -182,6 +184,7 @@ async function procesarTurno(programacion: ProgramacionConRelaciones, turnoTipo:
   if (!resultado.exito) {
     await logActivity({
       usuarioId: programacion.usuarioId,
+        cuentaId: programacion.cuentaId,
       programacionId: programacion.id,
       tipoEvento: "reintento",
       mensaje: resultado.motivo,
@@ -195,6 +198,7 @@ async function procesarTurno(programacion: ProgramacionConRelaciones, turnoTipo:
     if (resultado.asientosComprobados && !leerFechas(programacion[campoFallo]).includes(fechaObjetivoStr)) {
       await logActivity({
         usuarioId: programacion.usuarioId,
+        cuentaId: programacion.cuentaId,
         programacionId: programacion.id,
         tipoEvento: "reserva_fallida",
         mensaje: `No se pudo reservar el ${formatearFechaEs(fechaObjetivo)} (${turnoTipo}) en ${programacion.planta.nombre}: ${resultado.motivo}`,
@@ -211,6 +215,7 @@ async function procesarTurno(programacion: ProgramacionConRelaciones, turnoTipo:
 
   await logActivity({
     usuarioId: programacion.usuarioId,
+        cuentaId: programacion.cuentaId,
     programacionId: programacion.id,
     tipoEvento: "reserva_exitosa",
     mensaje: resultado.motivo,
@@ -272,6 +277,7 @@ export function startScheduleEngine() {
       procesarProgramacion(programacion).catch((err) =>
         logActivity({
           usuarioId: programacion.usuarioId,
+        cuentaId: programacion.cuentaId,
           programacionId: programacion.id,
           tipoEvento: "otro",
           mensaje: `Error inesperado del motor: ${(err as Error).message}`,

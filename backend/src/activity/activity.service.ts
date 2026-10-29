@@ -4,6 +4,7 @@ type TipoEvento = "reserva_exitosa" | "reserva_fallida" | "reintento" | "puesto_
 
 export async function logActivity(params: {
   usuarioId: string;
+  cuentaId?: string | null;
   programacionId?: string | null;
   tipoEvento: TipoEvento;
   mensaje: string;
@@ -11,6 +12,7 @@ export async function logActivity(params: {
   return prisma.actividadLog.create({
     data: {
       usuarioId: params.usuarioId,
+      cuentaId: params.cuentaId ?? undefined,
       programacionId: params.programacionId ?? undefined,
       tipoEvento: params.tipoEvento,
       mensaje: params.mensaje,
@@ -19,7 +21,7 @@ export async function logActivity(params: {
 }
 
 export async function listActivity(params: {
-  usuarioId: string;
+  cuentaId: string;
   tipoEvento?: TipoEvento;
   programacionId?: string;
   desde?: Date;
@@ -27,7 +29,7 @@ export async function listActivity(params: {
 }) {
   return prisma.actividadLog.findMany({
     where: {
-      usuarioId: params.usuarioId,
+      cuentaId: params.cuentaId,
       tipoEvento: params.tipoEvento,
       programacionId: params.programacionId,
       fecha: {

@@ -162,6 +162,23 @@ async function main() {
       await prisma.programacion.update({ where: { id: p.id }, data: { asientosCodigos: JSON.stringify(lista) } });
     }
   }
+
+  // Multi-cuenta: la cuenta PatronBase que ya tenía cada usuario pasa a ser su principal, y
+  // las reservas, programaciones y actividad anteriores se asocian a ella. Idempotente.
+  const usuariosSinPrincipal = await prisma.usuario.findMany({
+    where: { cuentasPatronBase: { some: {}, none: { principal: true } } },
+    include: { cuentasPatronBase: { orderBy: { createdAt: "asc" }, take: 1 } },
+  });
+  for (const u of usuariosSinPrincipal) {
+    await prisma.cuentaPatronBase.update({ where: { id: u.cuentasPatronBase[0].id }, data: { principal: true } });
+  }
+  const principales = await prisma.cuentaPatronBase.findMany({ where: { principal: true } });
+  for (const c of principales) {
+    const where = { usuarioId: c.usuarioId, cuentaId: null };
+    await prisma.programacion.updateMany({ where, data: { cuentaId: c.id } });
+    await prisma.reserva.updateMany({ where, data: { cuentaId: c.id } });
+    await prisma.actividadLog.updateMany({ where, data: { cuentaId: c.id } });
+  }
 }
 
 main()

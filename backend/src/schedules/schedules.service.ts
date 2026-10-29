@@ -6,6 +6,7 @@ import { diaTurnoPermitido } from "./rules";
 
 type CrearProgramacionInput = {
   usuarioId: string;
+  cuentaId: string;
   nombre?: string;
   bibliotecaId: string;
   plantaId: string;
@@ -64,9 +65,9 @@ export function calcularProximaEjecucion(p: ProgramacionParaProximaEjecucion): D
   return null;
 }
 
-export async function listSchedules(usuarioId: string) {
+export async function listSchedules(cuentaId: string) {
   const items = await prisma.programacion.findMany({
-    where: { usuarioId },
+    where: { cuentaId },
     include: { biblioteca: true, planta: true },
     orderBy: { createdAt: "desc" },
   });
@@ -92,6 +93,7 @@ export async function createSchedule(input: CrearProgramacionInput) {
   return prisma.programacion.create({
     data: {
       usuarioId: input.usuarioId,
+      cuentaId: input.cuentaId,
       nombre: input.nombre?.trim() || `${biblioteca.nombre} · ${planta.nombre}`,
       bibliotecaId: input.bibliotecaId,
       plantaId: input.plantaId,
@@ -113,8 +115,8 @@ export async function createSchedule(input: CrearProgramacionInput) {
   });
 }
 
-export async function setEstado(id: string, usuarioId: string, estado: "activa" | "pausada") {
-  const actual = await prisma.programacion.findFirst({ where: { id, usuarioId } });
+export async function setEstado(id: string, cuentaId: string, estado: "activa" | "pausada") {
+  const actual = await prisma.programacion.findFirst({ where: { id, cuentaId } });
   if (!actual) return { count: 0 };
 
   // Reanudar una programación finalizada arranca un ciclo nuevo con la misma
@@ -127,7 +129,7 @@ export async function setEstado(id: string, usuarioId: string, estado: "activa" 
   }
 
   return prisma.programacion.updateMany({
-    where: { id, usuarioId },
+    where: { id, cuentaId },
     data: {
       estado,
       contadorReservasRealizadas: reanudandoFinalizada && actual.tipo === "n_reservas" ? 0 : undefined,
@@ -149,8 +151,8 @@ type ActualizarProgramacionInput = Partial<{
   asientosCodigos: string[];
 }>;
 
-export async function updateSchedule(id: string, usuarioId: string, input: ActualizarProgramacionInput) {
-  const actual = await prisma.programacion.findFirst({ where: { id, usuarioId } });
+export async function updateSchedule(id: string, cuentaId: string, input: ActualizarProgramacionInput) {
+  const actual = await prisma.programacion.findFirst({ where: { id, cuentaId } });
   if (!actual) throw new Error("Programación no encontrada");
 
   const bibliotecaId = input.bibliotecaId ?? actual.bibliotecaId;
@@ -204,11 +206,11 @@ export async function updateSchedule(id: string, usuarioId: string, input: Actua
   });
 }
 
-export async function getSchedule(id: string, usuarioId: string) {
-  const p = await prisma.programacion.findFirst({ where: { id, usuarioId }, include: { biblioteca: true, planta: true } });
+export async function getSchedule(id: string, cuentaId: string) {
+  const p = await prisma.programacion.findFirst({ where: { id, cuentaId }, include: { biblioteca: true, planta: true } });
   return p ? { ...p, proximaEjecucion: calcularProximaEjecucion(p) } : null;
 }
 
-export async function deleteSchedule(id: string, usuarioId: string) {
-  return prisma.programacion.deleteMany({ where: { id, usuarioId } });
+export async function deleteSchedule(id: string, cuentaId: string) {
+  return prisma.programacion.deleteMany({ where: { id, cuentaId } });
 }

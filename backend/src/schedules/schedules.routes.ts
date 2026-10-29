@@ -1,14 +1,18 @@
 import { Router } from "express";
 import { z } from "zod";
-import { requireAuth } from "../auth/auth.middleware";
+import { requireAuth, requireCuenta } from "../auth/auth.middleware";
 import { listActivity } from "../activity/activity.service";
 import { createSchedule, deleteSchedule, getSchedule, listSchedules, setEstado, updateSchedule } from "./schedules.service";
 
 export const schedulesRouter = Router();
-schedulesRouter.use(requireAuth);
+schedulesRouter.use(requireAuth, requireCuenta);
+schedulesRouter.use((req, res, next) => {
+  if (!req.cuentaId) return res.status(422).json({ error: "No tienes una cuenta PatronBase vinculada" });
+  next();
+});
 
 schedulesRouter.get("/", async (req, res) => {
-  const items = await listSchedules(req.user!.sub);
+  const items = await listSchedules(req.cuentaId!);
   res.json(items);
 });
 
@@ -28,7 +32,7 @@ schedulesRouter.post("/", async (req, res) => {
   const parsed = crearSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Datos inválidos", detalles: parsed.error.flatten() });
   try {
-    const programacion = await createSchedule({ usuarioId: req.user!.sub, ...parsed.data });
+    const programacion = await createSchedule({ usuarioId: req.user!.sub, cuentaId: req.cuentaId!, ...parsed.data });
     res.status(201).json(programacion);
   } catch (err) {
     res.status(422).json({ error: (err as Error).message });
@@ -55,9 +59,9 @@ schedulesRouter.patch("/:id", async (req, res) => {
   if (!parsed.success) return res.status(400).json({ error: "Datos inválidos", detalles: parsed.error.flatten() });
   const { estado, ...resto } = parsed.data;
   try {
-    if (estado !== undefined) await setEstado(req.params.id, req.user!.sub, estado);
-    if (Object.keys(resto).length > 0) await updateSchedule(req.params.id, req.user!.sub, resto);
-    const actualizada = await getSchedule(req.params.id, req.user!.sub);
+    if (estado !== undefined) await setEstado(req.params.id, req.cuentaId!, estado);
+    if (Object.keys(resto).length > 0) await updateSchedule(req.params.id, req.cuentaId!, resto);
+    const actualizada = await getSchedule(req.params.id, req.cuentaId!);
     if (!actualizada) return res.status(404).json({ error: "Programación no encontrada" });
     res.json(actualizada);
   } catch (err) {
@@ -66,11 +70,11 @@ schedulesRouter.patch("/:id", async (req, res) => {
 });
 
 schedulesRouter.delete("/:id", async (req, res) => {
-  await deleteSchedule(req.params.id, req.user!.sub);
+  await deleteSchedule(req.params.id, req.cuentaId!);
   res.status(204).send();
 });
 
 schedulesRouter.get("/:id/activity", async (req, res) => {
-  const items = await listActivity({ usuarioId: req.user!.sub, programacionId: req.params.id });
+  const items = await listActivity({ cuentaId: req.cuentaId!, programacionId: req.params.id });
   res.json(items);
 });

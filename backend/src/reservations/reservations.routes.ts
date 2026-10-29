@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { requireAuth } from "../auth/auth.middleware";
+import { requireAuth, requireCuenta } from "../auth/auth.middleware";
 import {
   crearReservaPuntual,
   getPerformancesForTurno,
@@ -9,11 +9,12 @@ import {
 } from "./reservations.service";
 
 export const reservationsRouter = Router();
-reservationsRouter.use(requireAuth);
+reservationsRouter.use(requireAuth, requireCuenta);
 
 reservationsRouter.get("/", async (req, res) => {
+  if (!req.cuentaId) return res.json({ items: { enCurso: [], proximas: [] }, actualizadoEn: null, actualizando: false });
   try {
-    const { datos, actualizadoEn, actualizando } = await listReservationsCacheada(req.user!.sub);
+    const { datos, actualizadoEn, actualizando } = await listReservationsCacheada(req.cuentaId);
     res.json({ items: datos, actualizadoEn, actualizando });
   } catch (err) {
     console.error("[reservations] fallo al consultar reservas:", err);
@@ -66,9 +67,11 @@ reservationsRouter.post("/", async (req, res) => {
   if (!parsed.success) {
     return res.status(400).json({ error: "Datos inválidos", detalles: parsed.error.flatten() });
   }
+  if (!req.cuentaId) return res.status(422).json({ error: "No tienes una cuenta PatronBase vinculada" });
   try {
     const reserva = await crearReservaPuntual({
       usuarioId: req.user!.sub,
+      cuentaId: req.cuentaId,
       turnoId: parsed.data.turnoId,
       perfId: parsed.data.perfId,
       fecha: new Date(parsed.data.fecha),
