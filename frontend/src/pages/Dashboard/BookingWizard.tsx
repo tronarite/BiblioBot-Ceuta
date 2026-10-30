@@ -46,21 +46,6 @@ function IndicadorPasos({ paso }: { paso: 1 | 2 | 3 }) {
   );
 }
 
-const TIPO_ESTILO = {
-  manana: {
-    icono: "☀",
-    chip: "bg-sky-100 text-sky-800 dark:bg-sky-900/50 dark:text-sky-200",
-    borde: "border-l-4 border-l-sky-400 dark:border-l-sky-500",
-    cabecera: "bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-200",
-  },
-  tarde: {
-    icono: "☾",
-    chip: "bg-violet-100 text-violet-800 dark:bg-violet-900/50 dark:text-violet-200",
-    borde: "border-l-4 border-l-violet-400 dark:border-l-violet-500",
-    cabecera: "bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-200",
-  },
-} as const;
-
 function tipoLabel(t: Turno["tipo"]) {
   return t === "manana" ? "Mañana" : "Tarde";
 }
@@ -259,12 +244,9 @@ export function BookingWizard({
                 {b.nombre}
               </h3>
               <div className="hidden grid-cols-[minmax(0,7rem)_1fr_1fr] gap-3 px-4 pt-3 text-xs font-semibold uppercase tracking-wide text-slate-400 sm:grid dark:text-slate-500">
-                <span className="self-center">Planta</span>
-                {(["manana", "tarde"] as const).map((tipo) => (
-                  <span key={tipo} className={`rounded-md px-3 py-1.5 text-sm normal-case tracking-normal ${TIPO_ESTILO[tipo].cabecera}`}>
-                    {TIPO_ESTILO[tipo].icono} {tipoLabel(tipo)}
-                  </span>
-                ))}
+                <span>Planta</span>
+                <span>{tipoLabel("manana")}</span>
+                <span>{tipoLabel("tarde")}</span>
               </div>
               <div className="divide-y divide-slate-100 dark:divide-slate-700/60">
                 {b.plantas.map((p) => (
@@ -304,7 +286,7 @@ export function BookingWizard({
                           disabled={deshabilitado}
                           title={deshabilitado ? (estado?.mensaje ?? undefined) : completoHoy ? "Hoy no queda ningún asiento libre, pero puedes mirar otro día" : undefined}
                           onClick={() => elegirTurno(t)}
-                          className={`flex min-h-[5.5rem] flex-col justify-between gap-2 rounded-lg border px-3 py-2.5 text-left text-sm shadow-sm transition ${TIPO_ESTILO[tipo].borde} ${
+                          className={`flex min-h-[5.5rem] flex-col justify-between gap-2 rounded-lg border px-3 py-2.5 text-left text-sm shadow-sm transition ${
                             deshabilitado
                               ? "cursor-not-allowed border-slate-100 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/60"
                               : `hover:border-brand-400 dark:hover:border-brand-500 ${
@@ -320,9 +302,7 @@ export function BookingWizard({
                         >
                           <span className="flex items-center justify-between gap-2">
                             <span className="text-xs text-slate-500 dark:text-slate-400">
-                              <span className={`mr-1.5 rounded px-1.5 py-0.5 text-[11px] font-semibold ${TIPO_ESTILO[tipo].chip}`}>
-                                {TIPO_ESTILO[tipo].icono} {tipoLabel(tipo)}
-                              </span>
+                              <span className="sm:hidden">{tipoLabel(tipo)} · </span>
                               {t.horario}
                             </span>
                             {enCesta > 0 && (
