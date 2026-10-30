@@ -304,7 +304,7 @@ export function BookingWizard({
                         >
                           <span className="flex items-center justify-between gap-2">
                             <span className="text-xs text-slate-500 dark:text-slate-400">
-                              <span className="font-semibold text-slate-700 dark:text-slate-200">{tipoLabel(tipo)} · </span>
+                              <span className="font-semibold text-slate-700 sm:hidden dark:text-slate-200">{tipoLabel(tipo)} · </span>
                               {t.horario}
                             </span>
                             {enCesta > 0 && (
