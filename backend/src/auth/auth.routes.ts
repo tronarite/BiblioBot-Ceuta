@@ -142,38 +142,46 @@ authRouter.post("/registro/:codigo", async (req, res) => {
     return res.status(422).json({ error: "No se pudo iniciar sesión en PatronBase con esas credenciales" });
   }
 
-  // Se reserva el enlace de forma atómica para que dos registros simultáneos no lo usen a la vez.
-  const reclamada = await prisma.invitacion.updateMany({
-    where: { id: inv.id, usadaPorId: null },
-    data: { usadaPorId: "reclamada" },
-  });
-  if (reclamada.count !== 1) return res.status(409).json({ error: "Este enlace ya se ha usado" });
-
+  // Reclamar el enlace, crear la cuenta y la amistad es una sola transacción: si algo falla
+  // (o el servidor se cae a medias) el enlace queda libre y no se crea nada. El updateMany
+  // condicionado impide que dos registros simultáneos usen el mismo enlace.
+  const passwordHash = await hashPassword(password);
+  let usuario;
   try {
-    const usuario = await prisma.usuario.create({
-      data: {
-        nombre,
-        email,
-        passwordHash: await hashPassword(password),
-        rol: "usuario",
-        cuentasPatronBase: {
-          create: {
-            patronbaseEmail: parsed.data.email.trim(),
-            credencialesCifrado: encryptSecret(password),
-            estadoVinculacion: "vinculada",
-            ultimaSincronizacion: new Date(),
-            principal: true,
+    usuario = await prisma.$transaction(async (tx) => {
+      const reclamada = await tx.invitacion.updateMany({
+        where: { id: inv.id, usadaPorId: null },
+        data: { usadaPorId: "reclamada" },
+      });
+      if (reclamada.count !== 1) throw new Error("INVITACION_USADA");
+      const nuevo = await tx.usuario.create({
+        data: {
+          nombre,
+          email,
+          passwordHash,
+          rol: "usuario",
+          cuentasPatronBase: {
+            create: {
+              patronbaseEmail: parsed.data.email.trim(),
+              credencialesCifrado: encryptSecret(password),
+              estadoVinculacion: "vinculada",
+              ultimaSincronizacion: new Date(),
+              principal: true,
+            },
           },
         },
-      },
+      });
+      await tx.invitacion.update({ where: { id: inv.id }, data: { usadaPorId: nuevo.id } });
+      await tx.amistad.create({ data: { solicitanteId: inv.creadorId, receptorId: nuevo.id, estado: "aceptada" } });
+      return nuevo;
     });
-    await prisma.invitacion.update({ where: { id: inv.id }, data: { usadaPorId: usuario.id } });
-    await prisma.amistad.create({ data: { solicitanteId: inv.creadorId, receptorId: usuario.id, estado: "aceptada" } });
-    const token = signToken({ sub: usuario.id, rol: "usuario" });
-    res.cookie(AUTH_COOKIE_NAME, token, cookieOptions);
-    res.status(201).json(await serializeUsuario(usuario));
   } catch (err) {
-    await prisma.invitacion.update({ where: { id: inv.id }, data: { usadaPorId: null } });
+    if (err instanceof Error && err.message === "INVITACION_USADA") {
+      return res.status(409).json({ error: "Este enlace ya se ha usado" });
+    }
     throw err;
   }
+  const token = signToken({ sub: usuario.id, rol: "usuario" });
+  res.cookie(AUTH_COOKIE_NAME, token, cookieOptions);
+  res.status(201).json(await serializeUsuario(usuario));
 });
