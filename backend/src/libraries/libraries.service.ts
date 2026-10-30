@@ -113,6 +113,7 @@ export type EstadoTurno = {
   disponibleAhora: boolean;
   mensaje: string | null;
   plazasLibresHoy: number | null;
+  plazasTotalesHoy: number | null;
   avisoPlazasHoy: "pocas" | "criticas" | null;
 };
 
@@ -162,12 +163,14 @@ async function getEstadoTurnosEnVivo(): Promise<EstadoTurno[]> {
         const hayAlguno = options.some((o) => o.available);
 
         let plazasLibresHoy: number | null = null;
+        let plazasTotalesHoy: number | null = null;
         let avisoPlazasHoy: "pocas" | "criticas" | null = null;
         const hoyOpt = options.find((o) => labelMatchesDate(o.label, hoy));
         if (hoyOpt?.available) {
           try {
             const { seats } = await getSeatMap(session, turno.patronbaseProdId, hoyOpt.perfId);
             plazasLibresHoy = seats.filter((s) => s.state === "available").length;
+            plazasTotalesHoy = seats.length;
             avisoPlazasHoy = calcularAvisoPlazas(plazasLibresHoy, seats.length);
           } catch {
             plazasLibresHoy = null;
@@ -179,6 +182,7 @@ async function getEstadoTurnosEnVivo(): Promise<EstadoTurno[]> {
           disponibleAhora: hayAlguno,
           mensaje: hayAlguno ? null : (noDisponibleTexto ?? options.find((o) => o.availableFromText)?.availableFromText ?? null),
           plazasLibresHoy,
+          plazasTotalesHoy,
           avisoPlazasHoy,
         };
       } catch {
@@ -187,6 +191,7 @@ async function getEstadoTurnosEnVivo(): Promise<EstadoTurno[]> {
           disponibleAhora: false,
           mensaje: "No se pudo consultar la disponibilidad",
           plazasLibresHoy: null,
+          plazasTotalesHoy: null,
           avisoPlazasHoy: null,
         };
       }

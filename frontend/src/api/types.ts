@@ -76,6 +76,7 @@ export type EstadoTurno = {
   disponibleAhora: boolean;
   mensaje: string | null;
   plazasLibresHoy: number | null;
+  plazasTotalesHoy: number | null;
   avisoPlazasHoy: "pocas" | "criticas" | null;
 };
 

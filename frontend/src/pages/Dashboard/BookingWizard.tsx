@@ -223,90 +223,105 @@ export function BookingWizard({
             </p>
           )}
           {bibliotecas.map((b) => (
-            <div key={b.id}>
-              <h3 className="mb-2 font-medium text-slate-700 dark:text-slate-200">{b.nombre}</h3>
-              <div className="space-y-4">
-                {(["manana", "tarde"] as const).map((tipo) => {
-                  const turnosDeTipo = b.plantas.flatMap((p) => p.turnos.filter((t) => t.tipo === tipo).map((t) => ({ turno: t, planta: p })));
-                  if (turnosDeTipo.length === 0) return null;
-                  return (
-                    <div key={tipo}>
-                      <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
-                        {tipoLabel(tipo)}
-                      </h4>
-                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
-                        {turnosDeTipo.map(({ turno: t, planta: p }) => {
-                          const estado = estadoTurnos?.find((e) => e.turnoId === t.id);
-                          const deshabilitado = estado ? !estado.disponibleAhora : false;
-                          // La sala sigue abierta para reservar (puede tener hueco mañana), pero hoy no
-                          // queda ni un asiento: se muestra igual de apagada que las cerradas, para que
-                          // se note de un vistazo, pero sin bloquear el clic (mañana sí puede haber sitio).
-                          const completoHoy = !deshabilitado && estado?.plazasLibresHoy === 0;
-                          const enCesta = cesta.filter((c) => c.turno.id === t.id).length;
-                          return (
-                            <button
-                              key={t.id}
-                              type="button"
-                              disabled={deshabilitado}
-                              title={deshabilitado ? (estado?.mensaje ?? undefined) : completoHoy ? "Hoy no queda ningún asiento libre, pero puedes mirar otro día" : undefined}
-                              onClick={() => elegirTurno(t)}
-                              className={`rounded-xl border p-3 text-left text-sm transition ${
-                                deshabilitado
-                                  ? "cursor-not-allowed border-slate-100 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/60"
-                                  : completoHoy
-                                    ? "border-rose-100 bg-rose-50/60 hover:border-rose-300 dark:border-rose-900/40 dark:bg-rose-950/20 dark:hover:border-rose-700"
-                                    : `hover:border-brand-400 dark:border-slate-700 dark:hover:border-brand-500 ${
-                                        enCesta > 0 ? "border-brand-500 bg-brand-50 dark:bg-brand-900/30" : "border-slate-200 dark:bg-slate-800"
-                                      }`
-                              }`}
-                            >
-                              <div className="flex items-center justify-between gap-2">
-                                <p className={`font-medium ${deshabilitado ? "text-slate-500 dark:text-slate-400" : "dark:text-slate-100"}`}>
-                                  {p.nombre}
-                                </p>
-                                {enCesta > 0 && (
-                                  <span className="rounded-full bg-brand-600 px-2 py-0.5 text-xs font-medium text-white">
-                                    En la cesta{enCesta > 1 ? ` ×${enCesta}` : ""}
-                                  </span>
-                                )}
-                                {completoHoy && (
-                                  <span className="shrink-0 rounded-full bg-rose-100 px-2 py-0.5 text-xs font-medium text-rose-700 dark:bg-rose-900/40 dark:text-rose-300">
-                                    Completo hoy
-                                  </span>
-                                )}
-                              </div>
-                              {deshabilitado ? (
-                                <p className="mt-1 text-sm leading-snug text-slate-500 dark:text-slate-400">
-                                  {estado?.mensaje ?? "No disponible por ahora"}
-                                </p>
-                              ) : completoHoy ? (
-                                <p className="mt-1 text-sm leading-snug text-rose-600/90 dark:text-rose-400/90">
-                                  Sin asientos libres hoy · prueba otro día
-                                </p>
-                              ) : (
-                                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{t.horario}</p>
-                              )}
-                              {!deshabilitado && !completoHoy && estado?.avisoPlazasHoy === "criticas" && (
-                                <p className="mt-1 text-xs font-medium text-red-600 dark:text-red-400">
-                                  {estado.plazasLibresHoy === 1
-                                    ? "Queda 1 plaza hoy"
-                                    : `Quedan ${estado.plazasLibresHoy} plazas hoy`}
-                                </p>
-                              )}
-                              {!deshabilitado && !completoHoy && estado?.avisoPlazasHoy === "pocas" && (
-                                <p className="mt-1 text-xs font-medium text-amber-600 dark:text-amber-400">
-                                  Pocas plazas libres hoy
-                                </p>
-                              )}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })}
+            <section key={b.id} className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
+              <h3 className="border-b border-slate-200 bg-slate-50 px-4 py-2.5 font-medium text-slate-800 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-100">
+                {b.nombre}
+              </h3>
+              <div className="hidden grid-cols-[minmax(0,7rem)_1fr_1fr] gap-3 px-4 pt-3 text-xs font-semibold uppercase tracking-wide text-slate-400 sm:grid dark:text-slate-500">
+                <span>Planta</span>
+                <span>{tipoLabel("manana")}</span>
+                <span>{tipoLabel("tarde")}</span>
               </div>
-            </div>
+              <div className="divide-y divide-slate-100 dark:divide-slate-700/60">
+                {b.plantas.map((p) => (
+                  <div key={p.id} className="grid grid-cols-1 gap-2 px-4 py-3 sm:grid-cols-[minmax(0,7rem)_1fr_1fr] sm:items-stretch sm:gap-3">
+                    <p className="text-sm font-medium text-slate-700 sm:pt-2 dark:text-slate-200">{p.nombre}</p>
+                    {(["manana", "tarde"] as const).map((tipo) => {
+                      const t = p.turnos.find((x) => x.tipo === tipo);
+                      if (!t) {
+                        return (
+                          <div key={tipo} className="hidden items-center justify-center rounded-lg border border-dashed border-slate-200 text-xs text-slate-300 sm:flex dark:border-slate-700 dark:text-slate-600">
+                            Sin turno
+                          </div>
+                        );
+                      }
+                      const estado = estadoTurnos?.find((e) => e.turnoId === t.id);
+                      const deshabilitado = estado ? !estado.disponibleAhora : false;
+                      // La sala sigue abierta para reservar (puede tener hueco mañana), pero hoy no
+                      // queda ni un asiento: se muestra apagada para que se note de un vistazo, sin
+                      // bloquear el clic (mañana sí puede haber sitio).
+                      const completoHoy = !deshabilitado && estado?.plazasLibresHoy === 0;
+                      const enCesta = cesta.filter((c) => c.turno.id === t.id).length;
+                      const libres = estado?.plazasLibresHoy ?? null;
+                      const total = estado?.plazasTotalesHoy ?? null;
+                      const pct = libres !== null && total ? Math.round((libres / total) * 100) : null;
+                      const barColor =
+                        estado?.avisoPlazasHoy === "criticas" ? "bg-red-500" : estado?.avisoPlazasHoy === "pocas" ? "bg-amber-500" : "bg-emerald-500";
+                      return (
+                        <button
+                          key={t.id}
+                          type="button"
+                          disabled={deshabilitado}
+                          title={deshabilitado ? (estado?.mensaje ?? undefined) : completoHoy ? "Hoy no queda ningún asiento libre, pero puedes mirar otro día" : undefined}
+                          onClick={() => elegirTurno(t)}
+                          className={`flex flex-col gap-1.5 rounded-lg border px-3 py-2 text-left text-sm transition ${
+                            deshabilitado
+                              ? "cursor-not-allowed border-slate-100 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/60"
+                              : `hover:border-brand-400 dark:hover:border-brand-500 ${
+                                  enCesta > 0
+                                    ? "border-brand-500 bg-brand-50 dark:bg-brand-900/30"
+                                    : completoHoy
+                                      ? "border-rose-100 bg-rose-50/60 dark:border-rose-900/40 dark:bg-rose-950/20"
+                                      : "border-slate-200 dark:border-slate-700"
+                                }`
+                          }`}
+                        >
+                          <span className="flex items-center justify-between gap-2">
+                            <span className="text-xs text-slate-500 dark:text-slate-400">
+                              <span className="sm:hidden">{tipoLabel(tipo)} · </span>
+                              {t.horario}
+                            </span>
+                            {enCesta > 0 && (
+                              <span className="shrink-0 rounded-full bg-brand-600 px-2 py-0.5 text-xs font-medium text-white">
+                                En la cesta{enCesta > 1 ? ` ×${enCesta}` : ""}
+                              </span>
+                            )}
+                          </span>
+                          {deshabilitado ? (
+                            <span className="text-sm leading-snug text-slate-500 dark:text-slate-400">
+                              {estado?.mensaje ?? "No disponible por ahora"}
+                            </span>
+                          ) : (
+                            <>
+                              {pct !== null && (
+                                <span className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700" aria-hidden="true">
+                                  <span className={`block h-full rounded-full ${barColor}`} style={{ width: `${pct}%` }} />
+                                </span>
+                              )}
+                              <span
+                                className={`text-xs font-medium ${
+                                  completoHoy || estado?.avisoPlazasHoy === "criticas"
+                                    ? "text-red-600 dark:text-red-400"
+                                    : estado?.avisoPlazasHoy === "pocas"
+                                      ? "text-amber-600 dark:text-amber-400"
+                                      : "text-slate-600 dark:text-slate-300"
+                                }`}
+                              >
+                                {completoHoy
+                                  ? "Completo hoy · prueba otro día"
+                                  : libres !== null
+                                    ? `${libres}${total ? ` de ${total}` : ""} libres hoy`
+                                    : "Elegir día"}
+                              </span>
+                            </>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+            </section>
           ))}
         </div>
       )}
