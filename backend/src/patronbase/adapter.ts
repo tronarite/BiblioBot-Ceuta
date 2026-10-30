@@ -309,6 +309,20 @@ export async function emptyCart(session: PatronBaseSession, emptyCartHref: strin
 }
 
 /**
+ * Libera la retención de asientos que haya quedado en la cesta de la sesión (un hold que no
+ * llegó a completarse sigue bloqueando el asiento para el resto hasta que caduca la cesta).
+ * Es un intento de mejor esfuerzo: nunca lanza.
+ */
+export async function liberarCesta(session: PatronBaseSession): Promise<void> {
+  try {
+    const cart = await getCart(session);
+    if (!cart.isEmpty && cart.emptyCartHref) await emptyCart(session, cart.emptyCartHref);
+  } catch {
+    /* si no se puede vaciar, la cesta caduca sola */
+  }
+}
+
+/**
  * El "Completar el Pedido" de /Cart/Show solo navega a una página intermedia de
  * confirmación (con checkbox de términos y método de pago "gratis" precargado).
  * Hay que enviar ESE formulario para que el pedido se finalice de verdad.

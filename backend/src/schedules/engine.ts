@@ -3,7 +3,7 @@ import { prisma } from "../db";
 import { env } from "../env";
 import { logActivity } from "../activity/activity.service";
 import { getAuthenticatedSession } from "../patronbaseAccount/account.service";
-import { coincideAsiento, confirmSeats, getCart, getPerformances, getSeatMap, holdSeat, checkout as patronbaseCheckout } from "../patronbase/adapter";
+import { coincideAsiento, confirmSeats, getCart, getPerformances, getSeatMap, holdSeat, liberarCesta, checkout as patronbaseCheckout } from "../patronbase/adapter";
 import { addDays, fechaLocalISO, formatearFechaEs, labelMatchesDate, startOfDay } from "../libraries/dateEs";
 import { withAccountLock } from "../patronbase/accountLock";
 import { invalidarReservas, tieneReservaReal } from "../reservations/reservations.service";
@@ -97,12 +97,19 @@ async function intentarTurno(
     const held = await holdSeat(session, turno.patronbaseProdId, objetivo.perfId, asiento);
     if (!held) continue;
 
-    if (confirmHref) await confirmSeats(session, confirmHref);
-    const cart = await getCart(session);
-    if (cart.isEmpty || !cart.checkoutAction) continue;
-
-    const saleId = await patronbaseCheckout(session, cart.checkoutAction);
-    if (!saleId) continue;
+    let saleId: string | null = null;
+    try {
+      if (confirmHref) await confirmSeats(session, confirmHref);
+      const cart = await getCart(session);
+      if (!cart.isEmpty && cart.checkoutAction) saleId = await patronbaseCheckout(session, cart.checkoutAction);
+    } catch (err) {
+      await liberarCesta(session);
+      throw err;
+    }
+    if (!saleId) {
+      await liberarCesta(session);
+      continue;
+    }
 
     await prisma.reserva.create({
       data: {

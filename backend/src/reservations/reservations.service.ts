@@ -10,6 +10,7 @@ import {
   getSalesHistory,
   getSeatMap,
   holdSeat,
+  liberarCesta,
   checkout as patronbaseCheckout,
 } from "../patronbase/adapter";
 import { PatronBaseSession } from "../patronbase/session";
@@ -347,12 +348,18 @@ export async function crearReservaPuntual(params: {
       throw new Error("El asiento seleccionado ya no está disponible");
     }
 
-    if (confirmHref) {
-      await confirmSeats(session, confirmHref);
+    let cart: Awaited<ReturnType<typeof getCart>>;
+    try {
+      if (confirmHref) {
+        await confirmSeats(session, confirmHref);
+      }
+      cart = await getCart(session);
+    } catch (err) {
+      await liberarCesta(session);
+      throw err;
     }
-
-    const cart = await getCart(session);
     if (cart.isEmpty || !cart.checkoutAction) {
+      await liberarCesta(session);
       await logActivity({
         usuarioId: params.usuarioId,
         cuentaId: params.cuentaId,
@@ -364,8 +371,15 @@ export async function crearReservaPuntual(params: {
       throw new Error("No se pudo completar la reserva: la cesta quedó vacía");
     }
 
-    const saleId = await patronbaseCheckout(session, cart.checkoutAction);
+    let saleId: string | null;
+    try {
+      saleId = await patronbaseCheckout(session, cart.checkoutAction);
+    } catch (err) {
+      await liberarCesta(session);
+      throw err;
+    }
     if (!saleId) {
+      await liberarCesta(session);
       await logActivity({
         usuarioId: params.usuarioId,
         cuentaId: params.cuentaId,
