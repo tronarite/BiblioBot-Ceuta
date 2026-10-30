@@ -286,7 +286,9 @@ export function BookingWizard({
                           disabled={deshabilitado}
                           title={deshabilitado ? (estado?.mensaje ?? undefined) : completoHoy ? "Hoy no queda ningún asiento libre, pero puedes mirar otro día" : undefined}
                           onClick={() => elegirTurno(t)}
-                          className={`flex min-h-[5.5rem] flex-col justify-between gap-2 rounded-lg border px-3 py-2.5 text-left text-sm shadow-sm transition ${
+                          className={`flex min-h-[5.5rem] flex-col justify-between gap-2 rounded-lg border border-l-4 px-3 py-2.5 text-left text-sm shadow-sm transition ${
+                            tipo === "manana" ? "border-l-amber-400 dark:border-l-amber-500" : "border-l-indigo-400 dark:border-l-indigo-500"
+                          } ${
                             deshabilitado
                               ? "cursor-not-allowed border-slate-100 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/60"
                               : `hover:border-brand-400 dark:hover:border-brand-500 ${
