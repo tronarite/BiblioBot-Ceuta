@@ -243,14 +243,14 @@ export function BookingWizard({
               <h3 className="border-b border-slate-200 bg-slate-50 px-4 py-2.5 font-medium text-slate-800 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-100">
                 {b.nombre}
               </h3>
-              <div className="hidden grid-cols-[minmax(0,7rem)_1fr_1fr] gap-3 px-4 pt-3 text-xs font-semibold uppercase tracking-wide text-slate-400 sm:grid dark:text-slate-500">
+              <div className="hidden grid-cols-[minmax(0,7rem)_1fr_1fr] gap-4 px-4 pt-3 text-xs font-semibold uppercase tracking-wide text-slate-400 sm:grid dark:text-slate-500">
                 <span>Planta</span>
                 <span>{tipoLabel("manana")}</span>
                 <span>{tipoLabel("tarde")}</span>
               </div>
               <div className="divide-y divide-slate-100 dark:divide-slate-700/60">
                 {b.plantas.map((p) => (
-                  <div key={p.id} className="grid grid-cols-1 gap-2 px-4 py-3 sm:grid-cols-[minmax(0,7rem)_1fr_1fr] sm:items-stretch sm:gap-3">
+                  <div key={p.id} className="grid grid-cols-1 gap-2 px-4 py-3 sm:grid-cols-[minmax(0,7rem)_1fr_1fr] sm:items-stretch sm:gap-4">
                     <p className="text-sm font-medium text-slate-700 sm:pt-2 dark:text-slate-200">{p.nombre}</p>
                     {(["manana", "tarde"] as const).map((tipo) => {
                       const t = p.turnos.find((x) => x.tipo === tipo);
