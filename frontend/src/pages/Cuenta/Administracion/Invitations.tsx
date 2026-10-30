@@ -24,8 +24,9 @@ export function InvitationsAdmin() {
   async function generar() {
     setError(null);
     try {
-      await api.post("/admin/invitaciones");
+      const nueva = await api.post<{ codigo: string }>("/admin/invitaciones");
       cargar();
+      copiar(nueva.codigo);
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudo generar el enlace");
     }
@@ -44,9 +45,9 @@ export function InvitationsAdmin() {
   return (
     <div className="space-y-6">
       <div className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-800">
-        <h2 className="mb-1 font-medium text-slate-800 dark:text-slate-100">Invitar a una persona</h2>
+        <h2 className="mb-1 font-medium text-slate-800 dark:text-slate-100">Añadir un usuario nuevo</h2>
         <p className="mb-3 max-w-xl text-sm text-slate-500 dark:text-slate-400">
-          El enlace es de un solo uso y dura 7 días. La persona crea su cuenta con su email y contraseña de PatronBase
+          Genera un enlace de invitación y envíaselo (se copia al generarlo). El enlace es de un solo uso y dura 7 días. La persona crea su cuenta con su email y contraseña de PatronBase
           y queda como tu amiga automáticamente.
         </p>
         {error && <p className="mb-3 text-sm text-red-600 dark:text-red-400">{error}</p>}

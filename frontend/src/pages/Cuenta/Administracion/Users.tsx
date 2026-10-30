@@ -1,16 +1,13 @@
 import { useEffect, useState } from "react";
 import { api } from "../../../api/client";
 import type { Usuario } from "../../../api/types";
+import { InvitationsAdmin } from "./Invitations";
 
 const inputClass =
   "rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100";
 
 export function UsersAdmin() {
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
-  const [nombre, setNombre] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [rol, setRol] = useState<"usuario" | "admin">("usuario");
   const [error, setError] = useState<string | null>(null);
 
   function cargar() {
@@ -18,21 +15,6 @@ export function UsersAdmin() {
   }
 
   useEffect(cargar, []);
-
-  async function crear(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    try {
-      await api.post("/admin/usuarios", { nombre, email, password, rol });
-      setNombre("");
-      setEmail("");
-      setPassword("");
-      setRol("usuario");
-      cargar();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo crear el usuario");
-    }
-  }
 
   async function toggleActivo(u: Usuario) {
     await api.patch(`/admin/usuarios/${u.id}`, { activo: !u.activo });
@@ -57,46 +39,7 @@ export function UsersAdmin() {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-800">
-        <h2 className="mb-3 font-medium text-slate-800 dark:text-slate-100">Crear cuenta</h2>
-        <form onSubmit={crear} className="grid max-w-lg grid-cols-1 gap-3 sm:grid-cols-2">
-          <input
-            value={nombre}
-            onChange={(e) => setNombre(e.target.value)}
-            placeholder="Nombre"
-            required
-            className={`sm:col-span-2 ${inputClass}`}
-          />
-          <p className="text-xs text-slate-500 dark:text-slate-400 sm:col-span-2">
-            Se usan el email y la contraseña de PatronBase: son los mismos para entrar en BiblioBot, y esa cuenta queda
-            vinculada como la principal.
-          </p>
-          <input
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            type="email"
-            placeholder="Email de PatronBase"
-            required
-            className={`sm:col-span-2 ${inputClass}`}
-          />
-          <input
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            type="password"
-            placeholder="Contraseña de PatronBase"
-            required
-            className={inputClass}
-          />
-          <select value={rol} onChange={(e) => setRol(e.target.value as "usuario" | "admin")} className={inputClass}>
-            <option value="usuario">Usuario</option>
-            <option value="admin">Administrador</option>
-          </select>
-          {error && <p className="sm:col-span-2 text-sm text-red-600 dark:text-red-400">{error}</p>}
-          <button className="sm:col-span-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
-            Crear cuenta
-          </button>
-        </form>
-      </div>
+      <InvitationsAdmin />
 
       <div className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-800">
         <h2 className="mb-3 font-medium text-slate-800 dark:text-slate-100">Cuentas existentes</h2>
