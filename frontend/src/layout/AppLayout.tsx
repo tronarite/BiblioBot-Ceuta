@@ -9,6 +9,7 @@ import { useTheme, type Modo } from "../theme/ThemeContext";
 const tabs = [
   { to: "/dashboard", label: "Dashboard" },
   { to: "/programaciones", label: "Programaciones" },
+  { to: "/amigos", label: "Amigos" },
   { to: "/cuenta", label: "Cuenta" },
 ];
 
