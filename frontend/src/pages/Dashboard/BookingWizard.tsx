@@ -8,6 +8,7 @@ import { ImageLightbox } from "../../components/ImageLightbox";
 import { SeatMapViewer } from "../../components/SeatMapViewer";
 import { SuccessOverlay } from "../../components/SuccessOverlay";
 import type { SummaryStep } from "../../components/SummarySidebar";
+import { BTN, IndicadorPasos, PlanoPlegable, PRIM, usePlanoAbierto } from "../../components/WizardParts";
 
 type Fase = "elegir" | "dia" | "cesta";
 
@@ -26,25 +27,6 @@ const PLANO_POR_PLANTA: Record<string, string> = {
 };
 
 const PASOS = ["Turno", "Día y asiento", "Confirmar"];
-
-function IndicadorPasos({ paso }: { paso: 1 | 2 | 3 }) {
-  return (
-    <ol className="mb-5 grid grid-cols-3 gap-2" aria-label="Pasos de la reserva">
-      {PASOS.map((nombre, i) => (
-        <li key={nombre} aria-current={paso === i + 1 ? "step" : undefined}>
-          <span className={`block h-1 rounded-full ${paso >= i + 1 ? "bg-brand-600" : "bg-slate-200 dark:bg-slate-700"}`} />
-          <span
-            className={`mt-1 block text-xs ${
-              paso === i + 1 ? "font-semibold text-brand-700 dark:text-brand-300" : "text-slate-400 dark:text-slate-500"
-            }`}
-          >
-            {i + 1}. {nombre}
-          </span>
-        </li>
-      ))}
-    </ol>
-  );
-}
 
 function tipoLabel(t: Turno["tipo"]) {
   return t === "manana" ? "Mañana" : "Tarde";
@@ -70,24 +52,7 @@ export function BookingWizard({
   const [error, setError] = useState<string | null>(null);
   const [estadoTurnos, setEstadoTurnos] = useState<EstadoTurno[] | null>(null);
   const [planoAmpliado, setPlanoAmpliado] = useState(false);
-  const [planoAbierto, setPlanoAbierto] = useState(() => {
-    try {
-      return localStorage.getItem("bb.planoAbierto") !== "0";
-    } catch {
-      return true;
-    }
-  });
-
-  function alternarPlano() {
-    setPlanoAbierto((v) => {
-      try {
-        localStorage.setItem("bb.planoAbierto", v ? "0" : "1");
-      } catch {
-        /* sin almacenamiento: el ajuste solo dura esta sesión */
-      }
-      return !v;
-    });
-  }
+  const [planoAbierto, alternarPlano] = usePlanoAbierto();
   const [exito, setExito] = useState(false);
 
   function plantaDe(t: Turno): Planta | null {
@@ -224,9 +189,6 @@ export function BookingWizard({
     onEdit: () => setFase("cesta"),
   }));
 
-  const BTN = "rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:border-brand-400 dark:border-slate-600 dark:text-slate-200";
-  const PRIM = "rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50";
-
   const barra =
     fase === "elegir" ? (
       <>
@@ -279,7 +241,7 @@ export function BookingWizard({
         </p>
       )}
 
-      <IndicadorPasos paso={fase === "elegir" ? 1 : fase === "dia" ? 2 : 3} />
+      <IndicadorPasos pasos={PASOS} paso={fase === "elegir" ? 1 : fase === "dia" ? 2 : 3} />
 
       {fase === "elegir" && (
         <div className="space-y-6">
@@ -449,29 +411,14 @@ export function BookingWizard({
           ) : (
             <div className={`flex flex-col gap-6 ${plano && planoAbierto ? "lg:grid lg:grid-cols-[minmax(0,20rem)_1fr]" : ""}`}>
               {plano && (
-                <div className={planoAbierto ? "order-last lg:order-first" : "order-last"}>
-                  <button
-                    type="button"
-                    onClick={alternarPlano}
-                    aria-expanded={planoAbierto}
-                    className="flex w-full items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:border-brand-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-                  >
-                    <span>Plano de {plantaActual?.nombre}</span>
-                    <span className="text-xs font-normal text-slate-500 dark:text-slate-400">
-                      {planoAbierto ? "Minimizar ▾" : "Mostrar ▸"}
-                    </span>
-                  </button>
-                  {planoAbierto && (
-                    <button type="button" onClick={() => setPlanoAmpliado(true)} className="mt-2 block w-full">
-                      <img
-                        src={plano}
-                        alt={`Plano de ${plantaActual?.nombre}`}
-                        className="w-full cursor-zoom-in rounded-xl border border-slate-200 dark:border-slate-700"
-                      />
-                      <p className="mt-1 text-xs text-brand-600 dark:text-brand-400">Toca la imagen para verla más grande</p>
-                    </button>
-                  )}
-                </div>
+                <PlanoPlegable
+                  src={plano}
+                  planta={plantaActual?.nombre ?? ""}
+                  abierto={planoAbierto}
+                  onAlternar={alternarPlano}
+                  onAmpliar={() => setPlanoAmpliado(true)}
+                  className={planoAbierto ? "order-last lg:order-first" : "order-last"}
+                />
               )}
               <div>
                 <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Asiento</p>
