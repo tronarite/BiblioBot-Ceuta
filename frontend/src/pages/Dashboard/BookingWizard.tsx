@@ -286,9 +286,7 @@ export function BookingWizard({
                           disabled={deshabilitado}
                           title={deshabilitado ? (estado?.mensaje ?? undefined) : completoHoy ? "Hoy no queda ningún asiento libre, pero puedes mirar otro día" : undefined}
                           onClick={() => elegirTurno(t)}
-                          className={`flex min-h-[5.5rem] flex-col justify-between gap-2 rounded-lg border border-l-4 px-3 py-2.5 text-left text-sm shadow-sm transition ${
-                            tipo === "manana" ? "border-l-amber-400 dark:border-l-amber-500" : "border-l-indigo-400 dark:border-l-indigo-500"
-                          } ${
+                          className={`relative flex min-h-[5.5rem] flex-col justify-between gap-2 rounded-lg border py-2.5 pl-4 pr-3 text-left text-sm shadow-sm transition ${
                             deshabilitado
                               ? "cursor-not-allowed border-slate-100 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/60"
                               : `hover:border-brand-400 dark:hover:border-brand-500 ${
@@ -302,6 +300,10 @@ export function BookingWizard({
                                 }`
                           }`}
                         >
+                          <span
+                            aria-hidden="true"
+                            className={`absolute bottom-2 left-1.5 top-2 w-1 rounded-full ${tipo === "manana" ? "bg-amber-400 dark:bg-amber-500" : "bg-indigo-400 dark:bg-indigo-500"}`}
+                          />
                           <span className="flex items-center justify-between gap-2">
                             <span className="text-xs text-slate-500 dark:text-slate-400">
                               <span className="font-semibold text-slate-700 sm:hidden dark:text-slate-200">{tipoLabel(tipo)} · </span>
