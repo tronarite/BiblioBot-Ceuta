@@ -70,6 +70,24 @@ export function BookingWizard({
   const [error, setError] = useState<string | null>(null);
   const [estadoTurnos, setEstadoTurnos] = useState<EstadoTurno[] | null>(null);
   const [planoAmpliado, setPlanoAmpliado] = useState(false);
+  const [planoAbierto, setPlanoAbierto] = useState(() => {
+    try {
+      return localStorage.getItem("bb.planoAbierto") !== "0";
+    } catch {
+      return true;
+    }
+  });
+
+  function alternarPlano() {
+    setPlanoAbierto((v) => {
+      try {
+        localStorage.setItem("bb.planoAbierto", v ? "0" : "1");
+      } catch {
+        /* sin almacenamiento: el ajuste solo dura esta sesión */
+      }
+      return !v;
+    });
+  }
   const [exito, setExito] = useState(false);
 
   function plantaDe(t: Turno): Planta | null {
@@ -206,9 +224,55 @@ export function BookingWizard({
     onEdit: () => setFase("cesta"),
   }));
 
+  const BTN = "rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:border-brand-400 dark:border-slate-600 dark:text-slate-200";
+  const PRIM = "rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50";
+
+  const barra =
+    fase === "elegir" ? (
+      <>
+        <button type="button" onClick={onClose} className={BTN}>
+          Cancelar
+        </button>
+        <span className="flex-1" />
+        <button type="button" onClick={() => setFase("cesta")} disabled={cesta.length === 0} className={PRIM}>
+          Revisar cesta ({cesta.length})
+        </button>
+      </>
+    ) : fase === "dia" ? (
+      <>
+        <button type="button" onClick={volverAElegir} className={BTN}>
+          ← Turnos
+        </button>
+        {cesta.length > 0 && (
+          <button type="button" onClick={() => setFase("cesta")} className={BTN}>
+            Cesta ({cesta.length})
+          </button>
+        )}
+        <span className="flex-1" />
+        {seat && (
+          <span className="hidden text-sm text-slate-500 sm:inline dark:text-slate-400">
+            {formatearAsiento(seat.label)}
+          </span>
+        )}
+        <button type="button" onClick={añadirACesta} disabled={!seat} className={PRIM}>
+          Añadir a la cesta
+        </button>
+      </>
+    ) : (
+      <>
+        <button type="button" onClick={() => setFase("elegir")} className={BTN}>
+          ← Seguir eligiendo
+        </button>
+        <span className="flex-1" />
+        <button type="button" onClick={confirmarCesta} disabled={loading || cesta.length === 0} className={PRIM}>
+          {loading ? "Confirmando…" : `Confirmar ${cesta.length} reserva${cesta.length > 1 ? "s" : ""}`}
+        </button>
+      </>
+    );
+
   return (
     <Fragment>
-    <FullScreenPanel title="Hacer una reserva" onClose={onClose} steps={steps}>
+    <FullScreenPanel title="Hacer una reserva" onClose={onClose} steps={steps} footer={barra}>
       {error && (
         <p className="mb-4 whitespace-pre-line rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-900/20 dark:text-red-300">
           {error}
@@ -224,14 +288,6 @@ export function BookingWizard({
               Elige un turno, su día y el asiento: se añadirá a tu cesta. Puedes repetir el proceso para añadir varios
               turnos (por ejemplo, mañana y tarde) antes de confirmarlos todos juntos.
             </p>
-            <button
-              type="button"
-              onClick={() => setFase("cesta")}
-              disabled={cesta.length === 0}
-              className="shrink-0 rounded-lg border border-brand-500 px-3 py-2 text-sm font-medium text-brand-600 disabled:cursor-not-allowed disabled:opacity-40 dark:text-brand-400"
-            >
-              Cesta ({cesta.length})
-            </button>
           </div>
           {bibliotecas.length === 0 && (
             <p className="text-sm text-slate-400 dark:text-slate-500">
@@ -353,16 +409,6 @@ export function BookingWizard({
 
       {fase === "dia" && (
         <div className="space-y-5">
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-            <button type="button" onClick={volverAElegir} className="text-xs text-brand-600 hover:underline dark:text-brand-400">
-              ← Volver a elegir turnos
-            </button>
-            {cesta.length > 0 && (
-              <button type="button" onClick={() => setFase("cesta")} className="text-xs text-brand-600 hover:underline dark:text-brand-400">
-                Ver cesta ({cesta.length})
-              </button>
-            )}
-          </div>
           <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
             {bibliotecaActual?.nombre} · {plantaActual?.nombre} · {turnoActual ? tipoLabel(turnoActual.tipo) : ""}
           </p>
@@ -414,31 +460,36 @@ export function BookingWizard({
               </p>
             )
           ) : (
-            <div className={plano ? "grid gap-6 lg:grid-cols-[minmax(0,20rem)_1fr]" : undefined}>
+            <div className={`flex flex-col gap-6 ${plano && planoAbierto ? "lg:grid lg:grid-cols-[minmax(0,20rem)_1fr]" : ""}`}>
               {plano && (
-                <div>
-                  <button type="button" onClick={() => setPlanoAmpliado(true)} className="block w-full">
-                    <img
-                      src={plano}
-                      alt={`Plano de ${plantaActual?.nombre}`}
-                      className="w-full cursor-zoom-in rounded-xl border border-slate-200 dark:border-slate-700"
-                    />
-                    <p className="mt-1 text-xs text-brand-600 dark:text-brand-400">Toca la imagen para verla más grande</p>
+                <div className={planoAbierto ? "order-last lg:order-first" : "order-last"}>
+                  <button
+                    type="button"
+                    onClick={alternarPlano}
+                    aria-expanded={planoAbierto}
+                    className="flex w-full items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:border-brand-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                  >
+                    <span>Plano de {plantaActual?.nombre}</span>
+                    <span className="text-xs font-normal text-slate-500 dark:text-slate-400">
+                      {planoAbierto ? "Minimizar ▾" : "Mostrar ▸"}
+                    </span>
                   </button>
+                  {planoAbierto && (
+                    <button type="button" onClick={() => setPlanoAmpliado(true)} className="mt-2 block w-full">
+                      <img
+                        src={plano}
+                        alt={`Plano de ${plantaActual?.nombre}`}
+                        className="w-full cursor-zoom-in rounded-xl border border-slate-200 dark:border-slate-700"
+                      />
+                      <p className="mt-1 text-xs text-brand-600 dark:text-brand-400">Toca la imagen para verla más grande</p>
+                    </button>
+                  )}
                 </div>
               )}
               <div>
                 <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Asiento</p>
                 {loading && <p className="mb-3 text-sm text-slate-500 dark:text-slate-400">Cargando mapa de asientos…</p>}
                 <SeatMapViewer seats={seats} mode="single" selected={seat} onSelect={(s) => setSeat(s)} />
-                {seat && (
-                  <button
-                    onClick={añadirACesta}
-                    className="mt-6 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
-                  >
-                    Añadir a la cesta
-                  </button>
-                )}
               </div>
             </div>
           )}
@@ -495,22 +546,6 @@ export function BookingWizard({
               })}
             </div>
           )}
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={() => setFase("elegir")}
-              className="flex-1 rounded-lg border border-slate-300 py-2 text-sm font-medium text-slate-700 hover:border-brand-400 dark:border-slate-600 dark:text-slate-200"
-            >
-              ← Seguir eligiendo
-            </button>
-            <button
-              onClick={confirmarCesta}
-              disabled={loading || cesta.length === 0}
-              className="flex-1 rounded-lg bg-brand-600 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
-            >
-              {loading ? "Confirmando…" : `Confirmar ${cesta.length} reserva${cesta.length > 1 ? "s" : ""}`}
-            </button>
-          </div>
         </div>
       )}
     </FullScreenPanel>
