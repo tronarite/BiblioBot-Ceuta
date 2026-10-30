@@ -5,6 +5,9 @@ import { env } from "../env";
 import { serializeUsuario } from "../users/serialize";
 import { AUTH_COOKIE_NAME, hashPassword, normalizeEmail, signToken, verifyPassword } from "./auth.service";
 import { requireAuth } from "./auth.middleware";
+import { encryptSecret } from "../crypto/secretBox";
+import { login as loginPatronBase } from "../patronbase/adapter";
+import { PatronBaseSession } from "../patronbase/session";
 import { limpiarFallosLogin, minutosBloqueado, registrarFalloLogin } from "./rateLimit";
 
 export const authRouter = Router();
@@ -97,4 +100,80 @@ authRouter.get("/me", requireAuth, async (req, res) => {
     return res.status(404).json({ error: "Usuario no encontrado" });
   }
   res.json(await serializeUsuario(usuario));
+});
+
+// --- Alta por enlace de invitación -------------------------------------------
+// El enlace lo genera un administrador (Administración > Invitaciones), es de un solo uso y
+// caduca. Quien lo abre crea su propia cuenta con su email y contraseña de PatronBase (se
+// validan contra PatronBase antes de crear nada) y queda como amigo de quien lo generó.
+
+async function invitacionVigente(codigo: string) {
+  const inv = await prisma.invitacion.findUnique({ where: { codigo }, include: { creador: { select: { nombre: true } } } });
+  if (!inv || inv.usadaPorId || inv.expiraEn.getTime() < Date.now()) return null;
+  return inv;
+}
+
+authRouter.get("/invitacion/:codigo", async (req, res) => {
+  const inv = await invitacionVigente(req.params.codigo);
+  if (!inv) return res.status(404).json({ error: "Este enlace de invitación no es válido o ha caducado" });
+  res.json({ invitadoPor: inv.creador.nombre });
+});
+
+const registroSchema = z.object({
+  nombre: z.string().min(1),
+  email: z.string().email(),
+  password: z.string().min(1),
+});
+
+authRouter.post("/registro/:codigo", async (req, res) => {
+  const parsed = registroSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Datos inválidos" });
+  const inv = await invitacionVigente(req.params.codigo);
+  if (!inv) return res.status(404).json({ error: "Este enlace de invitación no es válido o ha caducado" });
+
+  const { nombre, password } = parsed.data;
+  const email = normalizeEmail(parsed.data.email);
+  if (await prisma.usuario.findUnique({ where: { email } })) {
+    return res.status(409).json({ error: "Ya existe una cuenta con ese email" });
+  }
+
+  const sesion = new PatronBaseSession();
+  if (!(await loginPatronBase(sesion, parsed.data.email.trim(), password))) {
+    return res.status(422).json({ error: "No se pudo iniciar sesión en PatronBase con esas credenciales" });
+  }
+
+  // Se reserva el enlace de forma atómica para que dos registros simultáneos no lo usen a la vez.
+  const reclamada = await prisma.invitacion.updateMany({
+    where: { id: inv.id, usadaPorId: null },
+    data: { usadaPorId: "reclamada" },
+  });
+  if (reclamada.count !== 1) return res.status(409).json({ error: "Este enlace ya se ha usado" });
+
+  try {
+    const usuario = await prisma.usuario.create({
+      data: {
+        nombre,
+        email,
+        passwordHash: await hashPassword(password),
+        rol: "usuario",
+        cuentasPatronBase: {
+          create: {
+            patronbaseEmail: parsed.data.email.trim(),
+            credencialesCifrado: encryptSecret(password),
+            estadoVinculacion: "vinculada",
+            ultimaSincronizacion: new Date(),
+            principal: true,
+          },
+        },
+      },
+    });
+    await prisma.invitacion.update({ where: { id: inv.id }, data: { usadaPorId: usuario.id } });
+    await prisma.amistad.create({ data: { solicitanteId: inv.creadorId, receptorId: usuario.id, estado: "aceptada" } });
+    const token = signToken({ sub: usuario.id, rol: "usuario" });
+    res.cookie(AUTH_COOKIE_NAME, token, cookieOptions);
+    res.status(201).json(await serializeUsuario(usuario));
+  } catch (err) {
+    await prisma.invitacion.update({ where: { id: inv.id }, data: { usadaPorId: null } });
+    throw err;
+  }
 });

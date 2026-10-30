@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../db";
@@ -209,4 +210,38 @@ adminRouter.get("/actividad", requireAdmin, async (_req, res) => {
     },
   });
   res.json(actividad);
+});
+
+// --- Invitaciones (alta de cuentas por enlace) -------------------------------
+const DIAS_VALIDEZ_INVITACION = 7;
+
+adminRouter.get("/invitaciones", requireAdmin, async (_req, res) => {
+  const invitaciones = await prisma.invitacion.findMany({ orderBy: { createdAt: "desc" }, take: 50 });
+  const usados = invitaciones.map((i) => i.usadaPorId).filter((x): x is string => !!x && x !== "reclamada");
+  const usuarios = await prisma.usuario.findMany({ where: { id: { in: usados } }, select: { id: true, nombre: true } });
+  res.json(
+    invitaciones.map((i) => ({
+      id: i.id,
+      codigo: i.codigo,
+      createdAt: i.createdAt,
+      expiraEn: i.expiraEn,
+      usadaPor: usuarios.find((u) => u.id === i.usadaPorId)?.nombre ?? null,
+    })),
+  );
+});
+
+adminRouter.post("/invitaciones", requireAdmin, async (req, res) => {
+  const invitacion = await prisma.invitacion.create({
+    data: {
+      codigo: randomBytes(18).toString("base64url"),
+      creadorId: req.user!.sub,
+      expiraEn: new Date(Date.now() + DIAS_VALIDEZ_INVITACION * 24 * 60 * 60 * 1000),
+    },
+  });
+  res.status(201).json({ id: invitacion.id, codigo: invitacion.codigo, expiraEn: invitacion.expiraEn });
+});
+
+adminRouter.delete("/invitaciones/:id", requireAdmin, async (req, res) => {
+  await prisma.invitacion.deleteMany({ where: { id: req.params.id } });
+  res.status(204).send();
 });

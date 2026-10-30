@@ -29,6 +29,7 @@ model Usuario {
   fechaCreacion       DateTime  @default(now())
   bibliotecasOcultas  String    @default("[]") // JSON array de ids de Biblioteca ocultas en el dashboard de este usuario
   debeCambiarPassword Boolean   @default(false) // true tras un restablecimiento por un admin: se fuerza el cambio al entrar
+  compartirReservas   Boolean   @default(true) // si los amigos pueden ver biblioteca, planta, turno y día de sus reservas (nunca el asiento)
 
   cuentasPatronBase   CuentaPatronBase[]
   reservas            Reserva[]
@@ -36,6 +37,35 @@ model Usuario {
   actividad           ActividadLog[]
   mensajesDashboard   MensajeDashboard[]
   horariosCreados     HorarioExtraordinario[]
+  amistadesEnviadas   Amistad[]  @relation("AmistadSolicitante")
+  amistadesRecibidas  Amistad[]  @relation("AmistadReceptor")
+  invitacionesCreadas Invitacion[] @relation("InvitacionCreador")
+}
+
+// EstadoAmistad: "pendiente" | "aceptada". Una fila por pareja y sentido (solicitante → receptor).
+model Amistad {
+  id            String   @id @default(cuid())
+  solicitanteId String
+  solicitante   Usuario  @relation("AmistadSolicitante", fields: [solicitanteId], references: [id], onDelete: Cascade)
+  receptorId    String
+  receptor      Usuario  @relation("AmistadReceptor", fields: [receptorId], references: [id], onDelete: Cascade)
+  estado        String   @default("pendiente")
+  createdAt     DateTime @default(now())
+
+  @@unique([solicitanteId, receptorId])
+  @@index([receptorId])
+}
+
+// Enlace de invitación de un solo uso: quien lo abre crea su propia cuenta (validada contra
+// PatronBase) y queda como amigo de quien generó el enlace.
+model Invitacion {
+  id          String    @id @default(cuid())
+  codigo      String    @unique
+  creadorId   String
+  creador     Usuario   @relation("InvitacionCreador", fields: [creadorId], references: [id], onDelete: Cascade)
+  usadaPorId  String?
+  createdAt   DateTime  @default(now())
+  expiraEn    DateTime
 }
 
 // Un usuario (login de BiblioBot) tiene una cuenta PatronBase principal y, opcionalmente,

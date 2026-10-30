@@ -10,6 +10,7 @@ import { activityRouter } from "./activity/activity.routes";
 import { librariesRouter } from "./libraries/libraries.routes";
 import { reservationsRouter } from "./reservations/reservations.routes";
 import { schedulesRouter } from "./schedules/schedules.routes";
+import { friendsRouter } from "./friends/friends.routes";
 import { adminRouter } from "./admin/admin.routes";
 import { startScheduleEngine } from "./schedules/engine";
 import { startScraperMonitor } from "./monitor/scraper-monitor";
@@ -29,6 +30,7 @@ app.use("/api/account/activity", activityRouter);
 app.use("/api/libraries", librariesRouter);
 app.use("/api/reservations", reservationsRouter);
 app.use("/api/schedules", schedulesRouter);
+app.use("/api/friends", friendsRouter);
 app.use("/api/admin", adminRouter);
 
 app.listen(env.port, () => {
