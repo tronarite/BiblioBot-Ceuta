@@ -9,7 +9,7 @@ import { SeatMapViewer } from "../../components/SeatMapViewer";
 import { SuccessOverlay } from "../../components/SuccessOverlay";
 import type { SummaryStep } from "../../components/SummarySidebar";
 
-type Fase = "elegir" | "dia" | "asiento" | "cesta";
+type Fase = "elegir" | "dia" | "cesta";
 
 type ItemCesta = {
   turno: Turno;
@@ -24,6 +24,27 @@ const PLANO_POR_PLANTA: Record<string, string> = {
   "4ª Planta": "/Planta4.jpg",
   "5ª Planta": "/Planta5.jpg",
 };
+
+const PASOS = ["Turno", "Día y asiento", "Confirmar"];
+
+function IndicadorPasos({ paso }: { paso: 1 | 2 | 3 }) {
+  return (
+    <ol className="mb-5 grid grid-cols-3 gap-2" aria-label="Pasos de la reserva">
+      {PASOS.map((nombre, i) => (
+        <li key={nombre} aria-current={paso === i + 1 ? "step" : undefined}>
+          <span className={`block h-1 rounded-full ${paso >= i + 1 ? "bg-brand-600" : "bg-slate-200 dark:bg-slate-700"}`} />
+          <span
+            className={`mt-1 block text-xs ${
+              paso === i + 1 ? "font-semibold text-brand-700 dark:text-brand-300" : "text-slate-400 dark:text-slate-500"
+            }`}
+          >
+            {i + 1}. {nombre}
+          </span>
+        </li>
+      ))}
+    </ol>
+  );
+}
 
 function tipoLabel(t: Turno["tipo"]) {
   return t === "manana" ? "Mañana" : "Tarde";
@@ -94,7 +115,7 @@ export function BookingWizard({
   }, [fase, turnoActual]);
 
   useEffect(() => {
-    if (fase !== "asiento" || !turnoActual || !perf) return;
+    if (fase !== "dia" || !turnoActual || !perf) return;
     setLoading(true);
     setError(null);
     api
@@ -119,13 +140,6 @@ export function BookingWizard({
     setTurnoActual(null);
     setPerf(null);
     setSeat(null);
-    setError(null);
-  }
-
-  function volverADia() {
-    setFase("dia");
-    setSeat(null);
-    setSeats([]);
     setError(null);
   }
 
@@ -201,6 +215,8 @@ export function BookingWizard({
         </p>
       )}
 
+      <IndicadorPasos paso={fase === "elegir" ? 1 : fase === "dia" ? 2 : 3} />
+
       {fase === "elegir" && (
         <div className="space-y-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -257,6 +273,12 @@ export function BookingWizard({
                       const pct = libres !== null && total ? Math.round((libres / total) * 100) : null;
                       const barColor =
                         estado?.avisoPlazasHoy === "criticas" ? "bg-red-500" : estado?.avisoPlazasHoy === "pocas" ? "bg-amber-500" : "bg-emerald-500";
+                      const textoColor =
+                        completoHoy || estado?.avisoPlazasHoy === "criticas"
+                          ? "text-red-600 dark:text-red-400"
+                          : estado?.avisoPlazasHoy === "pocas"
+                            ? "text-amber-600 dark:text-amber-400"
+                            : "text-emerald-700 dark:text-emerald-400";
                       return (
                         <button
                           key={t.id}
@@ -264,15 +286,17 @@ export function BookingWizard({
                           disabled={deshabilitado}
                           title={deshabilitado ? (estado?.mensaje ?? undefined) : completoHoy ? "Hoy no queda ningún asiento libre, pero puedes mirar otro día" : undefined}
                           onClick={() => elegirTurno(t)}
-                          className={`flex flex-col gap-1.5 rounded-lg border px-3 py-2 text-left text-sm transition ${
+                          className={`flex min-h-[5.5rem] flex-col justify-between gap-2 rounded-lg border px-3 py-2.5 text-left text-sm shadow-sm transition ${
                             deshabilitado
                               ? "cursor-not-allowed border-slate-100 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/60"
                               : `hover:border-brand-400 dark:hover:border-brand-500 ${
                                   enCesta > 0
                                     ? "border-brand-500 bg-brand-50 dark:bg-brand-900/30"
-                                    : completoHoy
-                                      ? "border-rose-100 bg-rose-50/60 dark:border-rose-900/40 dark:bg-rose-950/20"
-                                      : "border-slate-200 dark:border-slate-700"
+                                    : completoHoy || estado?.avisoPlazasHoy === "criticas"
+                                      ? "border-red-200 bg-red-50 dark:border-red-900/50 dark:bg-red-950/30"
+                                      : estado?.avisoPlazasHoy === "pocas"
+                                        ? "border-amber-200 bg-amber-50 dark:border-amber-900/50 dark:bg-amber-950/30"
+                                        : "border-emerald-200 bg-emerald-50 dark:border-emerald-900/50 dark:bg-emerald-950/30"
                                 }`
                           }`}
                         >
@@ -293,26 +317,23 @@ export function BookingWizard({
                             </span>
                           ) : (
                             <>
+                              {libres !== null && !completoHoy ? (
+                                <span className="flex items-baseline gap-1.5">
+                                  <span className={`text-2xl font-bold leading-none ${textoColor}`}>{libres}</span>
+                                  <span className="text-xs text-slate-600 dark:text-slate-300">
+                                    {total ? `de ${total} ` : ""}libres hoy
+                                  </span>
+                                </span>
+                              ) : (
+                                <span className={`text-sm font-semibold ${completoHoy ? textoColor : "text-slate-600 dark:text-slate-300"}`}>
+                                  {completoHoy ? "Completo hoy · prueba otro día" : "Elegir día"}
+                                </span>
+                              )}
                               {pct !== null && (
-                                <span className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700" aria-hidden="true">
+                                <span className="h-2 w-full overflow-hidden rounded-full bg-white/80 dark:bg-slate-700" aria-hidden="true">
                                   <span className={`block h-full rounded-full ${barColor}`} style={{ width: `${pct}%` }} />
                                 </span>
                               )}
-                              <span
-                                className={`text-xs font-medium ${
-                                  completoHoy || estado?.avisoPlazasHoy === "criticas"
-                                    ? "text-red-600 dark:text-red-400"
-                                    : estado?.avisoPlazasHoy === "pocas"
-                                      ? "text-amber-600 dark:text-amber-400"
-                                      : "text-slate-600 dark:text-slate-300"
-                                }`}
-                              >
-                                {completoHoy
-                                  ? "Completo hoy · prueba otro día"
-                                  : libres !== null
-                                    ? `${libres}${total ? ` de ${total}` : ""} libres hoy`
-                                    : "Elegir día"}
-                              </span>
                             </>
                           )}
                         </button>
@@ -327,8 +348,8 @@ export function BookingWizard({
       )}
 
       {fase === "dia" && (
-        <div>
-          <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1">
+        <div className="space-y-5">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
             <button type="button" onClick={volverAElegir} className="text-xs text-brand-600 hover:underline dark:text-brand-400">
               ← Volver a elegir turnos
             </button>
@@ -338,93 +359,85 @@ export function BookingWizard({
               </button>
             )}
           </div>
-          <p className="mb-3 text-sm text-slate-500 dark:text-slate-400">
+          <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
             {bibliotecaActual?.nombre} · {plantaActual?.nombre} · {turnoActual ? tipoLabel(turnoActual.tipo) : ""}
           </p>
-          {loading && <p className="text-sm text-slate-500 dark:text-slate-400">Consultando días disponibles…</p>}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
-            {performances.map((p) => {
-              const enCesta = cesta.some((c) => c.turno.id === turnoActual?.id && c.perf.perfId === p.perfId);
-              const bloqueado = !p.available || !!p.yaReservada || enCesta;
-              return (
-              <button
-                key={p.perfId}
-                disabled={bloqueado}
-                onClick={() => {
-                  setPerf(p);
-                  setSeat(null);
-                  setFase("asiento");
-                }}
-                className={`rounded-xl border p-3 text-left text-sm transition ${
-                  !bloqueado
-                    ? "border-slate-200 hover:border-brand-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-brand-500"
-                    : "cursor-not-allowed border-slate-100 bg-slate-50 dark:border-slate-800 dark:bg-slate-900/40"
-                }`}
-              >
-                <p className={`font-medium ${!bloqueado ? "" : "text-slate-500 dark:text-slate-400"}`}>
-                  {p.label.split("No estará")[0]}
-                </p>
-                {!p.available && p.availableFromText && (
-                  <p className="mt-1 text-sm leading-snug text-slate-500 dark:text-slate-400">{p.availableFromText}</p>
-                )}
-                {p.available && p.yaReservada && (
-                  <p className="mt-1 text-sm leading-snug text-slate-500 dark:text-slate-400">Ya tienes una reserva en este turno</p>
-                )}
-                {p.available && !p.yaReservada && enCesta && (
-                  <p className="mt-1 text-sm leading-snug text-slate-500 dark:text-slate-400">Ya está en tu cesta</p>
-                )}
-              </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
 
-      {fase === "asiento" && (
-        <div>
-          <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1">
-            <button type="button" onClick={volverADia} className="text-xs text-brand-600 hover:underline dark:text-brand-400">
-              ← Cambiar día
-            </button>
-            <button type="button" onClick={volverAElegir} className="text-xs text-brand-600 hover:underline dark:text-brand-400">
-              ← Volver a elegir turnos
-            </button>
-            {cesta.length > 0 && (
-              <button type="button" onClick={() => setFase("cesta")} className="text-xs text-brand-600 hover:underline dark:text-brand-400">
-                Ver cesta ({cesta.length})
-              </button>
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Día</p>
+            {loading && performances.length === 0 && (
+              <p className="text-sm text-slate-500 dark:text-slate-400">Consultando días disponibles…</p>
             )}
-          </div>
-          <p className="mb-3 text-sm text-slate-500 dark:text-slate-400">
-            {bibliotecaActual?.nombre} · {plantaActual?.nombre} · {turnoActual ? tipoLabel(turnoActual.tipo) : ""} ·{" "}
-            {perf?.label.split("No estará")[0]}
-          </p>
-          <div className={plano ? "grid gap-6 lg:grid-cols-[minmax(0,20rem)_1fr]" : undefined}>
-            {plano && (
-              <div>
-                <button type="button" onClick={() => setPlanoAmpliado(true)} className="block w-full">
-                  <img
-                    src={plano}
-                    alt={`Plano de ${plantaActual?.nombre}`}
-                    className="w-full cursor-zoom-in rounded-xl border border-slate-200 dark:border-slate-700"
-                  />
-                  <p className="mt-1 text-xs text-brand-600 dark:text-brand-400">Toca la imagen para verla más grande</p>
-                </button>
-              </div>
-            )}
-            <div>
-              {loading && <p className="mb-3 text-sm text-slate-500 dark:text-slate-400">Cargando mapa de asientos…</p>}
-              <SeatMapViewer seats={seats} mode="single" selected={seat} onSelect={(s) => setSeat(s)} />
-              {seat && (
-                <button
-                  onClick={añadirACesta}
-                  className="mt-6 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
-                >
-                  Añadir a la cesta
-                </button>
-              )}
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+              {performances.map((p) => {
+                const enCesta = cesta.some((c) => c.turno.id === turnoActual?.id && c.perf.perfId === p.perfId);
+                const bloqueado = !p.available || !!p.yaReservada || enCesta;
+                const elegido = perf?.perfId === p.perfId;
+                return (
+                  <button
+                    key={p.perfId}
+                    type="button"
+                    disabled={bloqueado}
+                    onClick={() => {
+                      setPerf(p);
+                      setSeat(null);
+                      setSeats([]);
+                    }}
+                    className={`rounded-lg border px-3 py-2 text-left text-sm transition ${
+                      elegido
+                        ? "border-brand-500 bg-brand-50 font-medium text-brand-700 dark:bg-brand-900/30 dark:text-brand-300"
+                        : !bloqueado
+                          ? "border-slate-200 hover:border-brand-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:border-brand-500"
+                          : "cursor-not-allowed border-slate-100 bg-slate-50 text-slate-500 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-400"
+                    }`}
+                  >
+                    <p className="font-medium">{p.label.split("No estará")[0]}</p>
+                    {!p.available && p.availableFromText && (
+                      <p className="mt-0.5 text-xs leading-snug">{p.availableFromText}</p>
+                    )}
+                    {p.available && p.yaReservada && <p className="mt-0.5 text-xs leading-snug">Ya tienes reserva</p>}
+                    {p.available && !p.yaReservada && enCesta && <p className="mt-0.5 text-xs leading-snug">En tu cesta</p>}
+                  </button>
+                );
+              })}
             </div>
           </div>
+
+          {!perf ? (
+            !loading && performances.length > 0 && (
+              <p className="rounded-lg border border-dashed border-slate-200 p-6 text-center text-sm text-slate-400 dark:border-slate-700 dark:text-slate-500">
+                Elige un día para ver los asientos.
+              </p>
+            )
+          ) : (
+            <div className={plano ? "grid gap-6 lg:grid-cols-[minmax(0,20rem)_1fr]" : undefined}>
+              {plano && (
+                <div>
+                  <button type="button" onClick={() => setPlanoAmpliado(true)} className="block w-full">
+                    <img
+                      src={plano}
+                      alt={`Plano de ${plantaActual?.nombre}`}
+                      className="w-full cursor-zoom-in rounded-xl border border-slate-200 dark:border-slate-700"
+                    />
+                    <p className="mt-1 text-xs text-brand-600 dark:text-brand-400">Toca la imagen para verla más grande</p>
+                  </button>
+                </div>
+              )}
+              <div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Asiento</p>
+                {loading && <p className="mb-3 text-sm text-slate-500 dark:text-slate-400">Cargando mapa de asientos…</p>}
+                <SeatMapViewer seats={seats} mode="single" selected={seat} onSelect={(s) => setSeat(s)} />
+                {seat && (
+                  <button
+                    onClick={añadirACesta}
+                    className="mt-6 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
+                  >
+                    Añadir a la cesta
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
