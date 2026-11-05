@@ -135,6 +135,8 @@ export type Programacion = {
   planta: Planta;
   cuentaId?: string | null;
   cuentaNombre?: string;
+  grupoId?: string | null;
+  grupo?: { id: string; nombre: string } | null;
 };
 
 export type EstadoSistema = {
