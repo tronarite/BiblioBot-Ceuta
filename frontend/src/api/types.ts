@@ -78,6 +78,8 @@ export type EstadoTurno = {
   plazasLibresHoy: number | null;
   plazasTotalesHoy: number | null;
   avisoPlazasHoy: "pocas" | "criticas" | null;
+  // Solo si hoy está completo: el siguiente día reservable (YYYY-MM-DD) y sus plazas libres.
+  proximoDia?: { fecha: string; plazasLibres: number | null } | null;
 };
 
 export type SeatInfo = {

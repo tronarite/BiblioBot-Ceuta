@@ -1,7 +1,7 @@
 import { prisma } from "../db";
 import { getPerformances, getSeatMap } from "../patronbase/adapter";
 import { PatronBaseSession } from "../patronbase/session";
-import { addDays, labelMatchesDate } from "./dateEs";
+import { addDays, fechaLocalISO, labelMatchesDate } from "./dateEs";
 import { conCacheSwr } from "./cache";
 
 export async function listBibliotecas() {
@@ -115,6 +115,8 @@ export type EstadoTurno = {
   plazasLibresHoy: number | null;
   plazasTotalesHoy: number | null;
   avisoPlazasHoy: "pocas" | "criticas" | null;
+  // Solo si hoy está completo: el siguiente día reservable (YYYY-MM-DD) y sus plazas libres.
+  proximoDia: { fecha: string; plazasLibres: number | null } | null;
 };
 
 // Nº de plazas libres por debajo del cual el aviso pasa a ser urgente (con el número
@@ -177,6 +179,27 @@ async function getEstadoTurnosEnVivo(): Promise<EstadoTurno[]> {
           }
         }
 
+        // Sala llena hoy: PatronBase no marca el día como reservable y añade a la etiqueta
+        // "…esta planta ha completado su aforo". Se cuenta como 0 libres y se busca el
+        // próximo día con hueco para decírselo al usuario ("Completo hoy · mañana 24 libres").
+        const completoHoy = !!hoyOpt && !hoyOpt.available && /complet\w*\s+su\s+aforo/i.test(hoyOpt.label);
+        let proximoDia: EstadoTurno["proximoDia"] = null;
+        if (completoHoy) {
+          plazasLibresHoy = 0;
+          const sig = options.find((o) => o.available && o !== hoyOpt);
+          if (sig) {
+            const fecha = [1, 2, 3, 4, 5, 6, 7].map((i) => addDays(hoy, i)).find((d) => labelMatchesDate(sig.label, d));
+            let libres: number | null = null;
+            try {
+              const { seats } = await getSeatMap(session, turno.patronbaseProdId, sig.perfId);
+              libres = seats.filter((s) => s.state === "available").length;
+            } catch {
+              /* sin el número se dice solo el día */
+            }
+            if (fecha) proximoDia = { fecha: fechaLocalISO(fecha), plazasLibres: libres };
+          }
+        }
+
         return {
           turnoId: turno.id,
           disponibleAhora: hayAlguno,
@@ -184,6 +207,7 @@ async function getEstadoTurnosEnVivo(): Promise<EstadoTurno[]> {
           plazasLibresHoy,
           plazasTotalesHoy,
           avisoPlazasHoy,
+          proximoDia,
         };
       } catch {
         return {
@@ -193,6 +217,7 @@ async function getEstadoTurnosEnVivo(): Promise<EstadoTurno[]> {
           plazasLibresHoy: null,
           plazasTotalesHoy: null,
           avisoPlazasHoy: null,
+          proximoDia: null,
         };
       }
     }),

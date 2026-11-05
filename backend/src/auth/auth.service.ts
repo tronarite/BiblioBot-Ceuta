@@ -6,6 +6,14 @@ import { env } from "../env";
 export type JwtPayload = {
   sub: string;
   rol: "admin" | "usuario";
+  iat?: number; // segundos; lo añade jsonwebtoken al firmar
+};
+
+export const AUTH_COOKIE_OPTIONS = {
+  httpOnly: true,
+  sameSite: "lax" as const,
+  secure: env.cookieSecure,
+  maxAge: 7 * 24 * 60 * 60 * 1000,
 };
 
 export async function hashPassword(password: string): Promise<string> {

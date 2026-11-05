@@ -29,7 +29,11 @@ model Usuario {
   fechaCreacion       DateTime  @default(now())
   bibliotecasOcultas  String    @default("[]") // JSON array de ids de Biblioteca ocultas en el dashboard de este usuario
   debeCambiarPassword Boolean   @default(false) // true tras un restablecimiento por un admin: se fuerza el cambio al entrar
-  compartirReservas   Boolean   @default(true) // si los amigos pueden ver biblioteca, planta, turno y día de sus reservas (nunca el asiento)
+  sesionesValidasDesde DateTime? // los tokens emitidos antes se rechazan (se fija al cambiar o restablecer la contraseña)
+  compartirReservas   Boolean   @default(true) // si los amigos pueden ver sus reservas (biblioteca y día siempre; el resto según los campos de abajo)
+  compartirPlanta     Boolean   @default(true)
+  compartirTurno      Boolean   @default(true)
+  compartirAsiento    Boolean   @default(false)
 
   cuentasPatronBase   CuentaPatronBase[]
   reservas            Reserva[]

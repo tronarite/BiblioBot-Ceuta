@@ -1,12 +1,18 @@
+import type { Request } from "express";
+
 /**
  * Limitador en memoria muy simple (sin dependencias) para frenar la fuerza bruta en el
- * login. Se cuenta por identificador (email/usuario) en vez de por IP: así protege una
- * cuenta concreta sin depender de la configuración de proxies (en producción todo entra
- * por Cloudflare + nginx, con lo que la IP vista por el backend sería siempre la misma).
- * Un intento con éxito limpia el contador. Al reiniciar el proceso se olvida todo.
+ * login. Dos contadores por cuenta (email/usuario):
+ *  - por cuenta + IP del cliente (8 fallos / 10 min): quien se equivoca solo se bloquea a
+ *    sí mismo, así que nadie puede dejar fuera al dueño de una cuenta fallando a propósito;
+ *  - por cuenta, sea cual sea la IP (30 fallos / 10 min): tope duro contra la fuerza bruta
+ *    repartida entre muchas IPs (o con cabeceras de IP falsificadas).
+ * La IP real llega en CF-Connecting-IP (Cloudflare); detrás de nginx, req.ip sería siempre
+ * la del proxy. Un intento con éxito limpia los contadores. Al reiniciar se olvida todo.
  */
 const VENTANA_MS = 10 * 60 * 1000; // 10 min
-const MAX_FALLOS = 8;
+const MAX_FALLOS_POR_IP = 8;
+const MAX_FALLOS_TOTAL = 30;
 
 const fallos = new Map<string, number[]>();
 
@@ -14,23 +20,43 @@ function normalizar(identificador: string): string {
   return identificador.trim().toLowerCase();
 }
 
-/** Devuelve los minutos que faltan para volver a poder intentarlo, o 0 si aún puede. */
-export function minutosBloqueado(identificador: string): number {
-  const k = normalizar(identificador);
+export function ipCliente(req: Request): string {
+  const cf = req.header("cf-connecting-ip");
+  const xff = req.header("x-forwarded-for")?.split(",")[0];
+  return (cf || xff || req.ip || "?").trim();
+}
+
+function recientes(clave: string): number[] {
   const ahora = Date.now();
-  const recientes = (fallos.get(k) ?? []).filter((t) => ahora - t < VENTANA_MS);
-  fallos.set(k, recientes);
-  if (recientes.length < MAX_FALLOS) return 0;
-  return Math.ceil((VENTANA_MS - (ahora - recientes[0])) / 60000);
+  const lista = (fallos.get(clave) ?? []).filter((t) => ahora - t < VENTANA_MS);
+  if (lista.length) fallos.set(clave, lista);
+  else fallos.delete(clave);
+  return lista;
 }
 
-export function registrarFalloLogin(identificador: string) {
-  const k = normalizar(identificador);
-  const recientes = (fallos.get(k) ?? []).filter((t) => Date.now() - t < VENTANA_MS);
-  recientes.push(Date.now());
-  fallos.set(k, recientes);
+function minutosRestantes(lista: number[], max: number): number {
+  if (lista.length < max) return 0;
+  return Math.ceil((VENTANA_MS - (Date.now() - lista[lista.length - max])) / 60000);
 }
 
-export function limpiarFallosLogin(identificador: string) {
-  fallos.delete(normalizar(identificador));
+const claves = (identificador: string, ip: string) => {
+  const id = normalizar(identificador);
+  return { porIp: `${id}|${ip}`, total: id };
+};
+
+/** Devuelve los minutos que faltan para volver a poder intentarlo, o 0 si aún puede. */
+export function minutosBloqueado(identificador: string, ip: string): number {
+  const k = claves(identificador, ip);
+  return Math.max(minutosRestantes(recientes(k.porIp), MAX_FALLOS_POR_IP), minutosRestantes(recientes(k.total), MAX_FALLOS_TOTAL));
+}
+
+export function registrarFalloLogin(identificador: string, ip: string) {
+  const k = claves(identificador, ip);
+  for (const clave of [k.porIp, k.total]) fallos.set(clave, [...recientes(clave), Date.now()]);
+}
+
+export function limpiarFallosLogin(identificador: string, ip: string) {
+  const k = claves(identificador, ip);
+  fallos.delete(k.porIp);
+  fallos.delete(k.total);
 }

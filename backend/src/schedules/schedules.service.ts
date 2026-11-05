@@ -149,7 +149,8 @@ export async function setEstado(id: string, usuarioId: string, estado: "activa" 
   // terminada en la siguiente reserva). En "hasta_fecha" no hay forma de deducir una
   // nueva fecha límite, así que si la actual ya pasó hay que editarla primero.
   const reanudandoFinalizada = actual.estado === "finalizada" && estado === "activa";
-  if (reanudandoFinalizada && actual.tipo === "hasta_fecha" && actual.valorTipoFecha && new Date() >= actual.valorTipoFecha) {
+  // Mismo criterio que el motor: la fecha límite es el último día reservable (incluido).
+  if (reanudandoFinalizada && actual.tipo === "hasta_fecha" && actual.valorTipoFecha && fechaLocalISO(new Date()) > fechaLocalISO(actual.valorTipoFecha)) {
     throw new Error("La fecha límite de esta programación ya ha pasado: edítala para ponerle una nueva antes de reanudarla");
   }
 

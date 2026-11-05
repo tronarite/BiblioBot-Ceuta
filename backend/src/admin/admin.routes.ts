@@ -140,7 +140,10 @@ adminRouter.patch("/usuarios/:id", requireAdmin, async (req, res) => {
   if (!parsed.success) return res.status(400).json({ error: "Datos inválidos" });
   const { passwordNueva, ...rest } = parsed.data;
   const data: Record<string, unknown> = { ...rest };
-  if (passwordNueva) data.passwordHash = await hashPassword(passwordNueva);
+  if (passwordNueva) {
+    data.passwordHash = await hashPassword(passwordNueva);
+    data.sesionesValidasDesde = new Date(); // cierra las sesiones abiertas con la contraseña anterior
+  }
 
   const usuario = await prisma.usuario.update({ where: { id: req.params.id }, data });
   res.json({ id: usuario.id, nombre: usuario.nombre, email: usuario.email, username: usuario.username, rol: usuario.rol, activo: usuario.activo });
@@ -162,7 +165,8 @@ adminRouter.post("/usuarios/:id/reset-password", requireAdmin, async (req, res) 
   const passwordTemporal = generarPasswordTemporal();
   await prisma.usuario.update({
     where: { id: usuario.id },
-    data: { passwordHash: await hashPassword(passwordTemporal), debeCambiarPassword: true },
+    // Cierra las sesiones abiertas: quien tuviera la cuenta ya no sigue dentro.
+    data: { passwordHash: await hashPassword(passwordTemporal), debeCambiarPassword: true, sesionesValidasDesde: new Date() },
   });
   res.json({ passwordTemporal });
 });

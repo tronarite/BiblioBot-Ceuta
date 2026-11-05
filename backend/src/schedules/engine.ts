@@ -282,9 +282,8 @@ async function intentarYRegistrar(
   if (programacion.tipo === "n_reservas" && programacion.valorTipoNumero && nuevoContador >= programacion.valorTipoNumero) {
     data.estado = "finalizada";
   }
-  if (programacion.tipo === "hasta_fecha" && programacion.valorTipoFecha && new Date() >= programacion.valorTipoFecha) {
-    data.estado = "finalizada";
-  }
+  // "hasta_fecha" no se finaliza aquí sino en procesarProgramacion, cuando la fecha límite
+  // (incluida) ya ha pasado: así el último día aún puede reservar sus dos turnos.
   // proximaEjecucion es solo informativo (se recalcula en cada lectura, ver
   // calcularProximaEjecucion); se guarda aquí con el estado y las fechas ya
   // actualizadas para que quien consulte la fila cruda en base de datos no vea un
@@ -310,7 +309,25 @@ async function procesarProgramacion(programacion: ProgramacionConRelaciones) {
   // directamente al día siguiente aunque el hueco de hoy siguiera libre.
   const candidatas = [new Date(), addDays(new Date(), 1)];
 
+  // "hasta_fecha": la fecha límite es el último día que se puede reservar (incluido).
+  // Pasado ese día la programación se da por terminada aunque no haya reservado nada, y
+  // nunca se reserva un día posterior al límite (antes, el día límite a las 7:00 ya
+  // reservaba el día siguiente).
+  const limite =
+    programacion.tipo === "hasta_fecha" && programacion.valorTipoFecha ? fechaLocalISO(programacion.valorTipoFecha) : null;
+  if (limite && fechaLocalISO(new Date()) > limite) {
+    await prisma.programacion.update({
+      where: { id: programacion.id },
+      data: {
+        estado: "finalizada",
+        proximaEjecucion: null,
+      },
+    });
+    return;
+  }
+
   for (const fechaObjetivo of candidatas) {
+    if (limite && fechaLocalISO(fechaObjetivo) > limite) continue;
     if (!diasSemana.includes(fechaObjetivo.getDay())) continue;
     for (const turnoTipo of turnos) {
       await procesarTurno(programacion, turnoTipo, fechaObjetivo);
@@ -321,7 +338,8 @@ async function procesarProgramacion(programacion: ProgramacionConRelaciones) {
 export function startScheduleEngine() {
   cron.schedule("* * * * *", async () => {
     const programaciones = await prisma.programacion.findMany({
-      where: { estado: "activa" },
+      // Las de usuarios desactivados no se ejecutan (siguen guardadas por si se reactivan).
+      where: { estado: "activa", usuario: { activo: true } },
       include: { biblioteca: true, planta: { include: { turnos: true } }, usuario: true },
     });
 
