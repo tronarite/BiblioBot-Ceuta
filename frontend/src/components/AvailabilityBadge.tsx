@@ -1,20 +1,25 @@
 import type { DisponibilidadBiblioteca } from "../api/types";
 
-const ESTILOS: Record<DisponibilidadBiblioteca["estado"], { label: string; classes: string }> = {
+// `corto` es lo que se ve en la fila; el texto completo queda como tooltip.
+const ESTILOS: Record<DisponibilidadBiblioteca["estado"], { label: string; corto: string; classes: string }> = {
   disponible_hoy_manana: {
     label: "Disponible hoy y mañana",
+    corto: "Hoy y mañana",
     classes: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300",
   },
   disponible_solo_hoy: {
     label: "Disponible solo hoy",
+    corto: "Solo hoy",
     classes: "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300",
   },
   disponible_solo_manana: {
     label: "Disponible solo mañana",
+    corto: "Solo mañana",
     classes: "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300",
   },
   no_disponible: {
     label: "No disponible ni hoy ni mañana",
+    corto: "No disponible",
     classes: "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300",
   },
 };
@@ -22,13 +27,20 @@ const ESTILOS: Record<DisponibilidadBiblioteca["estado"], { label: string; class
 export function AvailabilityBadge({ disponibilidad }: { disponibilidad: DisponibilidadBiblioteca }) {
   const estilo = ESTILOS[disponibilidad.estado];
   return (
-    // Fila a lo largo: nombre a la izquierda y estado a la derecha (baja a otra línea si no caben).
-    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 rounded-xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-800">
-      <h3 className="text-sm font-medium leading-snug text-slate-800 dark:text-slate-100 sm:text-base">{disponibilidad.nombre}</h3>
-      <span className={`inline-block rounded-full px-2.5 py-1 text-xs font-medium sm:px-3 ${estilo.classes}`}>{estilo.label}</span>
-      {disponibilidad.estado === "no_disponible" && disponibilidad.proximoDiaDisponibleTexto && (
-        <p className="basis-full text-xs text-slate-500 dark:text-slate-400">{disponibilidad.proximoDiaDisponibleTexto}</p>
-      )}
+    // Siempre una sola fila: el nombre se adapta (puede bajar de línea) y el estado queda fijo a la derecha.
+    <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-800">
+      <div className="min-w-0">
+        <h3 className="text-sm font-medium leading-snug text-slate-800 dark:text-slate-100">{disponibilidad.nombre}</h3>
+        {disponibilidad.estado === "no_disponible" && disponibilidad.proximoDiaDisponibleTexto && (
+          <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{disponibilidad.proximoDiaDisponibleTexto}</p>
+        )}
+      </div>
+      <span
+        title={estilo.label}
+        className={`shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-xs font-medium ${estilo.classes}`}
+      >
+        {estilo.corto}
+      </span>
     </div>
   );
 }
