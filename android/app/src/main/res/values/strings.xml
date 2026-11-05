@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">BiblioBot</string>
+    <string name="sin_conexion">No se puede conectar con BiblioBot.\nComprueba tu conexión a internet.</string>
+    <string name="reintentar">Reintentar</string>
+    <string name="tab_dashboard">Inicio</string>
+    <string name="tab_programaciones">Programar</string>
+    <string name="tab_amigos">Amigos</string>
+    <string name="tab_cuenta">Cuenta</string>
+</resources>

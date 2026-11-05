@@ -1,0 +1,8 @@
+<resources>
+    <style name="Theme.BiblioBot" parent="Theme.Material3.Light.NoActionBar">
+        <item name="colorPrimary">#1D69EF</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+    </style>
+</resources>
