@@ -66,9 +66,6 @@ function ThemeToggle() {
   );
 }
 
-// La app Android añade "BiblioBotApp" al user agent y lleva su propia barra de pestañas.
-const enApp = /BiblioBotApp/.test(navigator.userAgent);
-
 export function AppLayout() {
   const { usuario, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -113,16 +110,7 @@ export function AppLayout() {
           <div className="flex items-center gap-1 sm:hidden">
             <CuentaSelector />
             <ThemeToggle />
-            {enApp && (
-              <button
-                onClick={() => logout()}
-                className="rounded-lg px-2 py-1.5 text-sm font-medium text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700"
-              >
-                Salir
-              </button>
-            )}
             <button
-              hidden={enApp}
               onClick={() => setMenuOpen((v) => !v)}
               aria-label="Abrir menú"
               aria-expanded={menuOpen}
@@ -139,7 +127,7 @@ export function AppLayout() {
           </div>
         </div>
 
-        {menuOpen && !enApp && (
+        {menuOpen && (
           <div className="border-t border-slate-200 px-4 py-3 dark:border-slate-700 sm:hidden">
             <nav className="flex flex-col gap-1">
               {tabs.map((tab) => (
