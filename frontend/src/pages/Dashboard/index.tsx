@@ -284,7 +284,7 @@ export function DashboardPage() {
                     .
                   </p>
                 ) : (
-                  <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-1">
+                  <div className="grid grid-cols-1 gap-2">
                     {disponibilidadVisible.map((d) => (
                       <AvailabilityBadge key={d.bibliotecaId} disponibilidad={d} />
                     ))}
