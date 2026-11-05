@@ -3,6 +3,7 @@ import { api } from "../../api/client";
 import { useAuth } from "../../auth/AuthContext";
 import { useCuentas } from "../../auth/CuentaContext";
 import type { Biblioteca, Programacion } from "../../api/types";
+import { BotonConCuenta } from "../../components/BotonConCuenta";
 import { ScheduleCard } from "../../components/ScheduleCard";
 import { ScheduleWizard } from "./ScheduleWizard";
 
@@ -18,6 +19,8 @@ export function ProgramacionesPage() {
   const [bibliotecas, setBibliotecas] = useState<Biblioteca[]>([]);
   const [wizardTarget, setWizardTarget] = useState<"nueva" | Programacion | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // En la vista «Todas las cuentas» el botón de nueva programación pregunta con cuál.
+  const [cuentaNueva, setCuentaNueva] = useState<string | undefined>();
   // Modo "agrupar": ids marcados, nombre del grupo nuevo y grupo existente al que añadir.
   const [agrupando, setAgrupando] = useState(false);
   const [marcadas, setMarcadas] = useState<string[]>([]);
@@ -103,14 +106,15 @@ export function ProgramacionesPage() {
                 {agrupando ? "Cancelar" : "Agrupar"}
               </button>
             )}
-            <button
-              onClick={() => setWizardTarget("nueva")}
-              disabled={vistaTodas}
-              title={vistaTodas ? "Elige una cuenta concreta para crear una programación" : undefined}
-              className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
+            <BotonConCuenta
+              onElegir={(id) => {
+                setCuentaNueva(id);
+                setWizardTarget("nueva");
+              }}
+              className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
             >
               Nueva programación
-            </button>
+            </BotonConCuenta>
           </div>
         </div>
 
@@ -263,6 +267,7 @@ export function ProgramacionesPage() {
 
       {wizardTarget && (
         <ScheduleWizard
+          cuentaId={vistaTodas ? (wizardTarget === "nueva" ? cuentaNueva : (wizardTarget.cuentaId ?? undefined)) : undefined}
           // Al crear una nueva programación solo se ofrecen las bibliotecas visibles;
           // al editar una ya existente se pasan todas, para no romper la edición si su
           // biblioteca se ocultó después de crearla.

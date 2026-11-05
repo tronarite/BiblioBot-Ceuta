@@ -37,10 +37,17 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return data as T;
 }
 
-export const api = {
-  get: <T>(path: string) => request<T>(path, { method: "GET" }),
-  post: <T>(path: string, body?: unknown) => request<T>(path, { method: "POST", body: body ? JSON.stringify(body) : undefined }),
-  patch: <T>(path: string, body?: unknown) => request<T>(path, { method: "PATCH", body: body ? JSON.stringify(body) : undefined }),
-  put: <T>(path: string, body?: unknown) => request<T>(path, { method: "PUT", body: body ? JSON.stringify(body) : undefined }),
-  del: <T>(path: string) => request<T>(path, { method: "DELETE" }),
-};
+function crearApi(headers?: Record<string, string>) {
+  return {
+    get: <T>(path: string) => request<T>(path, { method: "GET", headers }),
+    post: <T>(path: string, body?: unknown) => request<T>(path, { method: "POST", headers, body: body ? JSON.stringify(body) : undefined }),
+    patch: <T>(path: string, body?: unknown) => request<T>(path, { method: "PATCH", headers, body: body ? JSON.stringify(body) : undefined }),
+    put: <T>(path: string, body?: unknown) => request<T>(path, { method: "PUT", headers, body: body ? JSON.stringify(body) : undefined }),
+    del: <T>(path: string) => request<T>(path, { method: "DELETE", headers }),
+  };
+}
+
+export const api = crearApi();
+
+/** Cliente fijado a una cuenta concreta (para actuar sobre ella desde la vista «Todas las cuentas»). */
+export const apiDeCuenta = (cuentaId: string) => crearApi({ "X-Cuenta-Id": cuentaId });

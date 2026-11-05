@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { api } from "../../api/client";
+import { api, apiDeCuenta } from "../../api/client";
 import type { Biblioteca, Planta, Programacion } from "../../api/types";
 import { FullScreenPanel } from "../../components/FullScreenPanel";
 import { ImageLightbox } from "../../components/ImageLightbox";
@@ -34,14 +34,18 @@ function reglaPermite(biblioteca: Biblioteca, planta: Planta, turnoTipo: "manana
 export function ScheduleWizard({
   bibliotecas,
   programacion: editando,
+  cuentaId,
   onClose,
   onCreated,
 }: {
   bibliotecas: Biblioteca[];
   programacion?: Programacion | null;
+  /** Cuenta sobre la que actuar; si falta, la activa (en la vista «Todas» hay que indicarla). */
+  cuentaId?: string;
   onClose: () => void;
   onCreated: (p: Programacion) => void;
 }) {
+  const cli = cuentaId ? apiDeCuenta(cuentaId) : api;
   const bibliotecaInicial = editando ? (bibliotecas.find((b) => b.id === editando.bibliotecaId) ?? null) : null;
   const plantaInicial = bibliotecaInicial ? (bibliotecaInicial.plantas.find((p) => p.id === editando!.plantaId) ?? null) : null;
 
@@ -91,8 +95,8 @@ export function ScheduleWizard({
     };
     try {
       const programacion = editando
-        ? await api.patch<Programacion>(`/schedules/${editando.id}`, payload)
-        : await api.post<Programacion>("/schedules", payload);
+        ? await cli.patch<Programacion>(`/schedules/${editando.id}`, payload)
+        : await cli.post<Programacion>("/schedules", payload);
       onCreated(programacion);
     } catch (err) {
       setError(err instanceof Error ? err.message : `No se pudo ${editando ? "guardar" : "crear"} la programación`);

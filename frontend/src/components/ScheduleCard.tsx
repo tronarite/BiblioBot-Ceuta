@@ -37,9 +37,8 @@ export function ScheduleCard({
   // Modo "agrupar": la tarjeta se marca/desmarca.
   seleccion?: { marcada: boolean; onToggle: () => void } | null;
 }) {
-  const { cuentaActiva, vistaTodas } = useCuentas();
-  const mostrarCuenta =
-    (vistaTodas || (!!cuentaActiva && cuentaActiva.modoProgramaciones !== "esta")) && !!programacion.cuentaNombre;
+  const { vistaTodas } = useCuentas();
+  const mostrarCuenta = vistaTodas && !!programacion.cuentaNombre;
   const turnos = JSON.parse(programacion.turnos) as string[];
   const diasSemana = JSON.parse(programacion.diasSemana) as number[];
   let asientos: string[] = [];

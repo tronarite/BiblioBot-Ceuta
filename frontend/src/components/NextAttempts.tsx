@@ -13,8 +13,7 @@ function formatear(iso: string): string {
 
 /** Cuándo intentará el bot reservar cada programación activa (la hora a la que abre el hueco). */
 export function NextAttempts() {
-  const { cuentaActiva, vistaTodas } = useCuentas();
-  const mostrarCuenta = vistaTodas || (!!cuentaActiva && cuentaActiva.modoProgramaciones !== "esta");
+  const { vistaTodas: mostrarCuenta } = useCuentas();
   const [programaciones, setProgramaciones] = useState<Programacion[]>([]);
 
   useEffect(() => {
