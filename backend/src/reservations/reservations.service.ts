@@ -205,7 +205,29 @@ const claveReservas = (cuentaId: string) => `reservas:${cuentaId}`;
  * datos viejos justo después.
  */
 export async function listReservationsCacheada(cuentaId: string) {
-  return conCacheSwr(claveReservas(cuentaId), TTL_RESERVAS_MS, () => listReservations(cuentaId));
+  const r = await conCacheSwr(claveReservas(cuentaId), TTL_RESERVAS_MS, () => listReservations(cuentaId));
+  return { ...r, datos: reclasificarPorHora(r.datos) };
+}
+
+/**
+ * La caché puede devolver un dato de hace horas (stale-while-revalidate, persistida en DB):
+ * "en curso"/"próxima" se recalcula con la hora actual para no mostrar, por ejemplo, un
+ * turno de mañana como en curso a las cuatro de la tarde. Las sesiones ya terminadas
+ * (de hoy o de días pasados) se quitan, igual que hace listReservations.
+ */
+function reclasificarPorHora(datos: { enCurso: ReservaPatronBase[]; proximas: ReservaPatronBase[] }) {
+  const ahora = new Date();
+  const hoy = startOfDay(ahora).getTime();
+  const enCurso: ReservaPatronBase[] = [];
+  const proximas: ReservaPatronBase[] = [];
+  for (const r of [...datos.enCurso, ...datos.proximas]) {
+    const dia = startOfDay(new Date(r.fecha)).getTime();
+    if (dia < hoy) continue;
+    const estado = dia > hoy ? "proxima" : estadoSesionHoy(r.turnoTipo, ahora);
+    if (estado === "finalizada") continue;
+    (estado === "en_curso" ? enCurso : proximas).push({ ...r, estado });
+  }
+  return { enCurso, proximas };
 }
 
 /**

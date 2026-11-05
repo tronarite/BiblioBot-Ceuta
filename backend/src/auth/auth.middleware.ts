@@ -13,17 +13,34 @@ declare global {
   }
 }
 
-export function requireAuth(req: Request, res: Response, next: NextFunction) {
+/**
+ * El JWT solo prueba quién es; lo demás se comprueba en la BD en cada petición: que el
+ * usuario siga existiendo y activo, que el token no sea anterior a un cambio de
+ * contraseña (sesionesValidasDesde) y el rol actual (no el que tenía al iniciar sesión).
+ */
+export async function requireAuth(req: Request, res: Response, next: NextFunction) {
   const token = req.cookies?.[AUTH_COOKIE_NAME];
   if (!token) {
     return res.status(401).json({ error: "No autenticado" });
   }
+  let payload: JwtPayload;
   try {
-    req.user = verifyToken(token);
-    next();
+    payload = verifyToken(token);
   } catch {
     return res.status(401).json({ error: "Sesión inválida o caducada" });
   }
+  const usuario = await prisma.usuario.findUnique({
+    where: { id: payload.sub },
+    select: { activo: true, rol: true, sesionesValidasDesde: true },
+  });
+  const revocado =
+    usuario?.sesionesValidasDesde && (payload.iat ?? 0) < Math.floor(usuario.sesionesValidasDesde.getTime() / 1000);
+  if (!usuario || !usuario.activo || revocado) {
+    res.clearCookie(AUTH_COOKIE_NAME);
+    return res.status(401).json({ error: "Sesión inválida o caducada" });
+  }
+  req.user = { sub: payload.sub, rol: usuario.rol === "admin" ? "admin" : "usuario" };
+  next();
 }
 
 export function requireAdmin(req: Request, res: Response, next: NextFunction) {

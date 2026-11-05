@@ -58,7 +58,7 @@ const seatSchema = z.object({
 const crearSchema = z.object({
   turnoId: z.string(),
   perfId: z.string(),
-  fecha: z.string(),
+  fecha: z.string().refine((s) => !Number.isNaN(Date.parse(s)), "Fecha no válida"),
   seat: seatSchema,
 });
 

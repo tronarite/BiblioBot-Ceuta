@@ -28,6 +28,22 @@ const PLANO_POR_PLANTA: Record<string, string> = {
 
 const PASOS = ["Turno", "Día y asiento", "Confirmar"];
 
+/** "Libre mañana · 24 asientos", "Libre el viernes 7 · 3 asientos"… para un turno completo hoy. */
+function textoProximoDia(proximo: EstadoTurno["proximoDia"]): string {
+  if (!proximo) return "Prueba otro día";
+  const [y, m, d] = proximo.fecha.split("-").map(Number);
+  const fecha = new Date(y, m - 1, d);
+  const manana = new Date();
+  manana.setDate(manana.getDate() + 1);
+  const cuando =
+    fecha.toDateString() === manana.toDateString()
+      ? "mañana"
+      : `el ${fecha.toLocaleDateString("es-ES", { weekday: "long", day: "numeric" })}`;
+  const plazas =
+    proximo.plazasLibres === null ? "" : ` · ${proximo.plazasLibres} ${proximo.plazasLibres === 1 ? "asiento" : "asientos"}`;
+  return `Libre ${cuando}${plazas}`;
+}
+
 function tipoLabel(t: Turno["tipo"]) {
   return t === "manana" ? "Mañana" : "Tarde";
 }
@@ -295,7 +311,7 @@ export function BookingWizard({
                             key={t.id}
                             type="button"
                             disabled={deshabilitado}
-                            title={deshabilitado ? (estado?.mensaje ?? undefined) : completoHoy ? "Hoy no queda ningún asiento libre, pero puedes mirar otro día" : undefined}
+                            title={deshabilitado ? (estado?.mensaje ?? undefined) : completoHoy ? `Hoy no queda ningún asiento libre. ${textoProximoDia(estado?.proximoDia)}.` : undefined}
                             onClick={() => elegirTurno(t)}
                             className={`flex min-h-[5.5rem] flex-col justify-between gap-2 rounded-lg border px-3 py-2.5 text-left text-sm shadow-sm transition ${
                               deshabilitado
@@ -332,10 +348,15 @@ export function BookingWizard({
                                       {total ? `de ${total} ` : ""}libres hoy
                                     </span>
                                   </span>
-                                ) : (
-                                  <span className={`text-sm font-semibold ${completoHoy ? textoColor : "text-slate-600 dark:text-slate-300"}`}>
-                                    {completoHoy ? "Completo hoy · prueba otro día" : "Elegir día"}
+                                ) : completoHoy ? (
+                                  <span className="flex flex-col gap-0.5">
+                                    <span className={`text-sm font-semibold ${textoColor}`}>Completo hoy</span>
+                                    <span className="text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                                      {textoProximoDia(estado?.proximoDia)}
+                                    </span>
                                   </span>
+                                ) : (
+                                  <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">Elegir día</span>
                                 )}
                                 {pct !== null && (
                                   <span className="h-2 w-full overflow-hidden rounded-full bg-white/80 dark:bg-slate-700" aria-hidden="true">
@@ -390,9 +411,12 @@ export function BookingWizard({
                           : "cursor-not-allowed border-slate-100 bg-slate-50 text-slate-500 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-400"
                     }`}
                   >
-                    <p className="font-medium">{p.label.split("No estará")[0]}</p>
+                    <p className="font-medium">{p.label.split(/No estará|Lo sentimos/)[0]}</p>
                     {!p.available && p.availableFromText && (
                       <p className="mt-0.5 text-xs leading-snug">{p.availableFromText}</p>
+                    )}
+                    {!p.available && !p.availableFromText && /complet\w*\s+su\s+aforo/i.test(p.label) && (
+                      <p className="mt-0.5 text-xs font-medium leading-snug text-red-600 dark:text-red-400">Completo</p>
                     )}
                     {p.available && p.yaReservada && <p className="mt-0.5 text-xs leading-snug">Ya tienes reserva</p>}
                     {p.available && !p.yaReservada && enCesta && <p className="mt-0.5 text-xs leading-snug">En tu cesta</p>}

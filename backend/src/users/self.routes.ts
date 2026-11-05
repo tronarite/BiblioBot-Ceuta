@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../db";
 import { requireAuth } from "../auth/auth.middleware";
-import { hashPassword, normalizeEmail, verifyPassword } from "../auth/auth.service";
+import { AUTH_COOKIE_NAME, AUTH_COOKIE_OPTIONS, hashPassword, normalizeEmail, signToken, verifyPassword } from "../auth/auth.service";
 import { serializeUsuario } from "./serialize";
 
 export const selfRouter = Router();
@@ -37,9 +37,14 @@ selfRouter.patch("/", async (req, res) => {
     passwordHash?: string;
     bibliotecasOcultas?: string;
     debeCambiarPassword?: boolean;
+    sesionesValidasDesde?: Date;
   } = {};
   if (nombre) data.nombre = nombre;
-  if (email) data.email = normalizeEmail(email);
+  if (email) {
+    data.email = normalizeEmail(email);
+    const otro = await prisma.usuario.findUnique({ where: { email: data.email } });
+    if (otro && otro.id !== usuario.id) return res.status(409).json({ error: "Ese email ya lo usa otra cuenta" });
+  }
   if (bibliotecasOcultas) data.bibliotecasOcultas = JSON.stringify(bibliotecasOcultas);
 
   if (passwordNueva) {
@@ -48,8 +53,13 @@ selfRouter.patch("/", async (req, res) => {
     }
     data.passwordHash = await hashPassword(passwordNueva);
     data.debeCambiarPassword = false; // ya la ha cambiado él mismo
+    data.sesionesValidasDesde = new Date(); // cierra las demás sesiones abiertas
   }
 
   const actualizado = await prisma.usuario.update({ where: { id: usuario.id }, data });
+  if (passwordNueva) {
+    // Esta sesión sigue: se le da un token nuevo, posterior al cambio.
+    res.cookie(AUTH_COOKIE_NAME, signToken({ sub: usuario.id, rol: usuario.rol === "admin" ? "admin" : "usuario" }), AUTH_COOKIE_OPTIONS);
+  }
   res.json(await serializeUsuario(actualizado));
 });

@@ -4,3 +4,4 @@ dist/
 *.db
 *.db-journal
 .prod-*.log
+.dev-*.log

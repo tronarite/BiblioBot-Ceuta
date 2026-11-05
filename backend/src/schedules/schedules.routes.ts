@@ -17,6 +17,9 @@ schedulesRouter.get("/", async (req, res) => {
   res.json(items);
 });
 
+// Una fecha que no se pueda interpretar se rechaza aquí (400) en vez de llegar a la BD como Invalid Date.
+const fechaValida = z.string().refine((s) => !Number.isNaN(Date.parse(s)), "Fecha no válida");
+
 const crearSchema = z.object({
   nombre: z.string().trim().min(1).max(80).optional(),
   bibliotecaId: z.string(),
@@ -24,7 +27,7 @@ const crearSchema = z.object({
   turnos: z.array(z.enum(["manana", "tarde"])).min(1),
   tipo: z.enum(["n_reservas", "hasta_fecha", "indefinida"]),
   valorTipoNumero: z.number().int().positive().optional(),
-  valorTipoFecha: z.string().optional(),
+  valorTipoFecha: fechaValida.optional(),
   diasSemana: z.array(z.number().int().min(0).max(6)).min(1),
   asientosCodigos: z.array(z.string().trim().min(1)).min(1).max(10),
 });
@@ -50,7 +53,7 @@ const actualizarSchema = z
     turnos: z.array(z.enum(["manana", "tarde"])).min(1).optional(),
     tipo: z.enum(["n_reservas", "hasta_fecha", "indefinida"]).optional(),
     valorTipoNumero: z.number().int().positive().optional(),
-    valorTipoFecha: z.string().optional(),
+    valorTipoFecha: fechaValida.optional(),
     diasSemana: z.array(z.number().int().min(0).max(6)).min(1).optional(),
     asientosCodigos: z.array(z.string().trim().min(1)).min(1).max(10).optional(),
   })

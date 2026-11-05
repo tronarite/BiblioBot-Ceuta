@@ -13,7 +13,8 @@ export const env = {
   databaseUrl: required("DATABASE_URL"),
   patronbaseBaseUrl: process.env.PATRONBASE_BASE_URL ?? "https://es.patronbase.com/_BibliotecaCeuta",
   scheduleRetryDelayMinutes: Number(process.env.SCHEDULE_RETRY_DELAY_MINUTES ?? 1),
-  corsOrigin: process.env.CORS_ORIGIN ?? "*",
+  // Sin CORS por defecto: la web y la app Android usan el mismo origen que la API.
+  corsOrigin: process.env.CORS_ORIGIN ?? false,
   // Independiente de NODE_ENV: este despliegue no tiene terminación HTTPS delante
   // (docker-compose sirve todo por HTTP plano, incluido el acceso por IP de LAN desde
   // móviles). Una cookie "Secure" solo se envía por HTTPS, salvo la excepción de

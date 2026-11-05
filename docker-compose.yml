@@ -7,8 +7,8 @@ services:
       - DATABASE_URL=file:/data/bibliobot.db
     volumes:
       - backend_data:/data
-    ports:
-      - "4000:4000"
+    # Sin "ports": la API solo es accesible a través del nginx del frontend (red interna de
+    # Docker), nunca directamente desde fuera saltándose el proxy.
     restart: unless-stopped
 
   frontend:

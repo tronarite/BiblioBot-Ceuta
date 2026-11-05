@@ -1,23 +1,17 @@
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../db";
-import { env } from "../env";
 import { serializeUsuario } from "../users/serialize";
-import { AUTH_COOKIE_NAME, hashPassword, normalizeEmail, signToken, verifyPassword } from "./auth.service";
+import { AUTH_COOKIE_NAME, AUTH_COOKIE_OPTIONS, hashPassword, normalizeEmail, signToken, verifyPassword } from "./auth.service";
 import { requireAuth } from "./auth.middleware";
 import { encryptSecret } from "../crypto/secretBox";
 import { login as loginPatronBase } from "../patronbase/adapter";
 import { PatronBaseSession } from "../patronbase/session";
-import { limpiarFallosLogin, minutosBloqueado, registrarFalloLogin } from "./rateLimit";
+import { ipCliente, limpiarFallosLogin, minutosBloqueado, registrarFalloLogin } from "./rateLimit";
 
 export const authRouter = Router();
 
-const cookieOptions = {
-  httpOnly: true,
-  sameSite: "lax" as const,
-  secure: env.cookieSecure,
-  maxAge: 7 * 24 * 60 * 60 * 1000,
-};
+const cookieOptions = AUTH_COOKIE_OPTIONS;
 
 authRouter.get("/status", async (_req, res) => {
   const adminCount = await prisma.usuario.count({ where: { rol: "admin" } });
@@ -69,7 +63,8 @@ authRouter.post("/login", async (req, res) => {
   }
   const { identificador, password } = parsed.data;
 
-  const bloqueo = minutosBloqueado(identificador);
+  const ip = ipCliente(req);
+  const bloqueo = minutosBloqueado(identificador, ip);
   if (bloqueo > 0) {
     return res.status(429).json({ error: `Demasiados intentos fallidos. Prueba de nuevo en ${bloqueo} min.` });
   }
@@ -79,11 +74,11 @@ authRouter.post("/login", async (req, res) => {
     (await prisma.usuario.findUnique({ where: { username: identificador } }));
   const valido = usuario && usuario.activo && (await verifyPassword(password, usuario.passwordHash));
   if (!valido) {
-    registrarFalloLogin(identificador);
+    registrarFalloLogin(identificador, ip);
     return res.status(401).json({ error: "Credenciales incorrectas" });
   }
 
-  limpiarFallosLogin(identificador);
+  limpiarFallosLogin(identificador, ip);
   const token = signToken({ sub: usuario.id, rol: usuario.rol as "admin" | "usuario" });
   res.cookie(AUTH_COOKIE_NAME, token, cookieOptions);
   res.json(await serializeUsuario(usuario));

@@ -10,6 +10,15 @@ friendsRouter.use(requireAuth);
 
 const publico = { id: true, nombre: true, email: true } as const;
 
+// Qué ven los amigos de mis reservas: interruptor general y campos opcionales
+// (biblioteca y día van siempre que se comparta; nunca el enlace a PatronBase).
+const camposPrivacidad = {
+  compartirReservas: true,
+  compartirPlanta: true,
+  compartirTurno: true,
+  compartirAsiento: true,
+} as const;
+
 async function sonAmigos(a: string, b: string) {
   const f = await prisma.amistad.findFirst({
     where: {
@@ -40,8 +49,8 @@ friendsRouter.get("/", async (req, res) => {
   const enviadas = filas
     .filter((f) => f.estado === "pendiente" && f.solicitanteId === yo)
     .map((f) => ({ amistadId: f.id, ...f.receptor }));
-  const usuario = await prisma.usuario.findUnique({ where: { id: yo }, select: { compartirReservas: true } });
-  res.json({ amigos, recibidas, enviadas, compartirReservas: usuario?.compartirReservas ?? true });
+  const privacidad = await prisma.usuario.findUnique({ where: { id: yo }, select: camposPrivacidad });
+  res.json({ amigos, recibidas, enviadas, compartirReservas: privacidad?.compartirReservas ?? true, privacidad });
 });
 
 const solicitudSchema = z.object({ email: z.string().email() });
@@ -95,22 +104,44 @@ friendsRouter.delete("/:id", async (req, res) => {
   res.status(204).send();
 });
 
-const privacidadSchema = z.object({ compartirReservas: z.boolean() });
+const privacidadSchema = z
+  .object({
+    compartirReservas: z.boolean(),
+    compartirPlanta: z.boolean(),
+    compartirTurno: z.boolean(),
+    compartirAsiento: z.boolean(),
+  })
+  .partial();
 
 friendsRouter.patch("/privacidad", async (req, res) => {
   const parsed = privacidadSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Datos inválidos" });
-  await prisma.usuario.update({ where: { id: req.user!.sub }, data: { compartirReservas: parsed.data.compartirReservas } });
-  res.json({ compartirReservas: parsed.data.compartirReservas });
+  const privacidad = await prisma.usuario.update({
+    where: { id: req.user!.sub },
+    data: parsed.data,
+    select: camposPrivacidad,
+  });
+  res.json({ compartirReservas: privacidad.compartirReservas, privacidad });
 });
 
-// Reservas (en curso y próximas) de un amigo: biblioteca, planta, turno y día, nunca el
-// asiento ni el enlace a PatronBase. Se leen de su cuenta principal.
+type ReservaCompartible = {
+  saleId: string;
+  bibliotecaNombre: string;
+  plantaNombre: string;
+  turnoTipo: "manana" | "tarde" | null;
+  fecha: string;
+  estado: "en_curso" | "proxima";
+  asiento: string;
+};
+
+// Reservas (en curso y próximas) de un amigo, solo con los campos que él ha decidido
+// compartir (biblioteca y día siempre; nunca el enlace a PatronBase). Se leen de su
+// cuenta principal.
 friendsRouter.get("/:usuarioId/reservas", async (req, res) => {
   const yo = req.user!.sub;
   const amigoId = req.params.usuarioId;
   if (!(await sonAmigos(yo, amigoId))) return res.status(403).json({ error: "No sois amigos" });
-  const amigo = await prisma.usuario.findUnique({ where: { id: amigoId }, select: { compartirReservas: true } });
+  const amigo = await prisma.usuario.findUnique({ where: { id: amigoId }, select: camposPrivacidad });
   if (!amigo?.compartirReservas) return res.json({ compartido: false, reservas: [] });
 
   const cuenta = await prisma.cuentaPatronBase.findFirst({
@@ -118,19 +149,24 @@ friendsRouter.get("/:usuarioId/reservas", async (req, res) => {
     orderBy: [{ principal: "desc" }, { createdAt: "asc" }],
   });
   if (!cuenta) return res.json({ compartido: true, reservas: [] });
+
+  let lista: ReservaCompartible[];
   try {
     const { datos } = await listReservationsCacheada(cuenta.id);
-    const reservas = [...datos.enCurso, ...datos.proximas].map((r) => ({
-      saleId: r.saleId,
-      bibliotecaNombre: r.bibliotecaNombre,
-      plantaNombre: r.plantaNombre,
-      turnoTipo: r.turnoTipo,
-      horario: r.horario,
-      fecha: r.fecha,
-      estado: r.estado,
-    }));
-    res.json({ compartido: true, reservas });
+    lista = [...datos.enCurso, ...datos.proximas];
   } catch {
-    res.status(502).json({ error: "No se pudieron consultar sus reservas ahora mismo" });
+    return res.status(502).json({ error: "No se pudieron consultar sus reservas ahora mismo" });
   }
+
+  const reservas = lista.map((r) => ({
+    saleId: r.saleId,
+    bibliotecaNombre: r.bibliotecaNombre,
+    fecha: r.fecha,
+    estado: r.estado,
+    plantaNombre: amigo.compartirPlanta ? r.plantaNombre : null,
+    turnoTipo: amigo.compartirTurno ? r.turnoTipo : null,
+    asiento: amigo.compartirAsiento ? r.asiento || null : null,
+  }));
+  res.json({ compartido: true, reservas });
 });
+
