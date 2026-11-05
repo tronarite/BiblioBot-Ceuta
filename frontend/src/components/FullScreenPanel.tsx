@@ -13,7 +13,7 @@ export function FullScreenPanel({
   children,
 }: {
   title: string;
-  /** Línea bajo el título (p. ej. la cuenta con la que se está operando). */
+  /** Al otro lado del título, en la misma línea (p. ej. la cuenta con la que se está operando). */
   subtitle?: ReactNode;
   steps: SummaryStep[];
   onClose: () => void;
@@ -34,8 +34,10 @@ export function FullScreenPanel({
       <SummarySidebar steps={steps} onClose={onClose} className="md:order-2" />
       <div className="flex min-h-0 flex-1 flex-col">
         <div className="flex-1 overflow-y-auto overscroll-y-contain p-4 sm:p-8">
-          <h1 className="text-xl font-semibold text-slate-800 dark:text-slate-100">{title}</h1>
-          {subtitle ? <div className="mt-1.5">{subtitle}</div> : null}
+          <div className="flex items-center justify-between gap-3">
+            <h1 className="text-xl font-semibold text-slate-800 dark:text-slate-100">{title}</h1>
+            {subtitle}
+          </div>
           <div className="mt-6">{children}</div>
         </div>
         {footer && (
