@@ -22,16 +22,23 @@ export function ScheduleCard({
   onDelete,
   onRename,
   onEdit,
+  enGrupo,
+  onLeaveGroup,
+  seleccion,
 }: {
   programacion: Programacion;
   onTogglePause: () => void;
   onDelete: () => void;
   onRename: (nombre: string) => void;
   onEdit: () => void;
+  // Dentro de un grupo, pausar/reanudar es del grupo: la tarjeta no lo ofrece y permite salir del grupo.
+  enGrupo?: boolean;
+  onLeaveGroup?: () => void;
+  // Modo "agrupar": la tarjeta se marca/desmarca.
+  seleccion?: { marcada: boolean; onToggle: () => void } | null;
 }) {
-  const { cuentaActiva, vistaTodas } = useCuentas();
-  const mostrarCuenta =
-    (vistaTodas || (!!cuentaActiva && cuentaActiva.modoProgramaciones !== "esta")) && !!programacion.cuentaNombre;
+  const { vistaTodas } = useCuentas();
+  const mostrarCuenta = vistaTodas && !!programacion.cuentaNombre;
   const turnos = JSON.parse(programacion.turnos) as string[];
   const diasSemana = JSON.parse(programacion.diasSemana) as number[];
   let asientos: string[] = [];
@@ -52,8 +59,23 @@ export function ScheduleCard({
   }
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
-      <div className="flex items-start justify-between">
+    <div
+      className={`rounded-xl border bg-white p-4 dark:bg-slate-800 ${
+        seleccion?.marcada ? "border-brand-500 ring-2 ring-brand-300 dark:ring-brand-700" : "border-slate-200 dark:border-slate-700"
+      } ${seleccion ? "cursor-pointer" : ""}`}
+      onClick={seleccion?.onToggle}
+    >
+      <div className="flex items-start justify-between gap-2">
+        {seleccion && (
+          <input
+            type="checkbox"
+            checked={seleccion.marcada}
+            onChange={seleccion.onToggle}
+            onClick={(e) => e.stopPropagation()}
+            aria-label="Elegir para el grupo"
+            className="mt-1 h-4 w-4 accent-brand-600"
+          />
+        )}
         <div className="min-w-0 flex-1">
           {editando ? (
             <input
@@ -135,7 +157,7 @@ export function ScheduleCard({
         </p>
       )}
 
-      <div className="mt-4 flex gap-2 text-xs">
+      <div className={`mt-4 flex flex-wrap gap-2 text-xs ${seleccion ? "pointer-events-none opacity-50" : ""}`}>
         <button
           onClick={onEdit}
           className="rounded-lg border border-slate-200 px-3 py-1.5 font-medium hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700"
@@ -143,10 +165,10 @@ export function ScheduleCard({
           Editar
         </button>
         <button
-          onClick={onTogglePause}
+          onClick={enGrupo ? onLeaveGroup : onTogglePause}
           className="rounded-lg border border-slate-200 px-3 py-1.5 font-medium hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700"
         >
-          {programacion.estado === "activa" ? "Pausar" : "Reanudar"}
+          {enGrupo ? "Sacar del grupo" : programacion.estado === "activa" ? "Pausar" : "Reanudar"}
         </button>
         <button
           onClick={onDelete}

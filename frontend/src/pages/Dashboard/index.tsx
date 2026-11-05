@@ -8,6 +8,7 @@ import { useAuth } from "../../auth/AuthContext";
 import { useCuentas } from "../../auth/CuentaContext";
 import type { Biblioteca, ConCache, DisponibilidadBiblioteca, HorarioExtraordinario, ReservationsResponse } from "../../api/types";
 import { AvailabilityBadge } from "../../components/AvailabilityBadge";
+import { BotonConCuenta } from "../../components/BotonConCuenta";
 import { DataFreshness, type EstadoFrescura } from "../../components/DataFreshness";
 import { Dropdown } from "../../components/Dropdown";
 import { FailedReservationsNotice } from "../../components/FailedReservationsNotice";
@@ -54,6 +55,8 @@ export function DashboardPage() {
   const [horarios, setHorarios] = useState<HorarioExtraordinario[]>([]);
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [wizardOpen, setWizardOpen] = useState(false);
+  // En la vista «Todas las cuentas» el botón de reservar pregunta con cuál.
+  const [cuentaReserva, setCuentaReserva] = useState<string | undefined>();
   const [errorReservas, setErrorReservas] = useState<string | null>(null);
 
   const [fuentes, setFuentes] = useState<Record<Fuente, EstadoFuente>>({
@@ -231,14 +234,15 @@ export function DashboardPage() {
         </div>
 
         {tab === "general" && (
-          <button
-            onClick={() => setWizardOpen(true)}
-            disabled={vistaTodas}
-            title={vistaTodas ? "Elige una cuenta concreta para reservar" : undefined}
-            className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
+          <BotonConCuenta
+            onElegir={(id) => {
+              setCuentaReserva(id);
+              setWizardOpen(true);
+            }}
+            className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
           >
             Hacer una reserva
-          </button>
+          </BotonConCuenta>
         )}
       </div>
 
@@ -248,43 +252,45 @@ export function DashboardPage() {
               ocupación abajo ocupando todo el ancho. En móvil (grid-cols-1) se apilan en
               ese mismo orden, así lo primero que se ve son las reservas actuales y luego
               el estado de las bibliotecas. */}
-          <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-            {errorReservas && (
-              <p className="lg:col-span-2 rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-900/20 dark:text-red-300">
-                No se han podido consultar tus reservas en PatronBase: {errorReservas}
-              </p>
-            )}
-            <ReservationsList titulo="En curso" reservas={reservas.enCurso} vacio="No tienes reservas en curso" />
-            <ReservationsList titulo="Próximas" reservas={reservas.proximas} vacio="No tienes próximas reservas" />
-
-            <div className="lg:col-span-2">
-              <NextAttempts />
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_20rem]">
+            {/* Columna principal: las reservas, con tantas tarjetas por fila como quepan. */}
+            <div className="space-y-8">
+              {errorReservas && (
+                <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-900/20 dark:text-red-300">
+                  No se han podido consultar tus reservas en PatronBase: {errorReservas}
+                </p>
+              )}
+              <ReservationsList titulo="En curso" reservas={reservas.enCurso} vacio="No tienes reservas en curso" />
+              <ReservationsList titulo="Próximas" reservas={reservas.proximas} vacio="No tienes próximas reservas" />
             </div>
 
-            <div className="lg:col-span-2">
-              <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                Ocupación de las bibliotecas
-              </h2>
-              {disponibilidad === null ? (
-                <p className="text-sm text-slate-400 dark:text-slate-500">Consultando disponibilidad en PatronBase…</p>
-              ) : disponibilidadVisible.length === 0 ? (
-                <p className="text-sm text-slate-400 dark:text-slate-500">
-                  Has ocultado todas las bibliotecas.{" "}
-                  <Link to="/cuenta" className="text-brand-600 hover:underline dark:text-brand-400">
-                    Cambia cuáles ver desde Cuenta
-                  </Link>
-                  .
-                </p>
-              ) : (
-                // auto-fit en vez de un nº fijo de columnas: si ocultas bibliotecas desde
-                // Cuenta, las tarjetas restantes se reparten el espacio libre en vez de
-                // dejarlo vacío.
-                <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">
-                  {disponibilidadVisible.map((d) => (
-                    <AvailabilityBadge key={d.bibliotecaId} disponibilidad={d} />
-                  ))}
-                </div>
-              )}
+            {/* Columna lateral (en móvil queda debajo): próximos intentos y ocupación, que
+                antes ocupaban filas enteras casi vacías. */}
+            <div className="space-y-8">
+              <NextAttempts />
+
+              <div>
+                <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                  Ocupación de las bibliotecas
+                </h2>
+                {disponibilidad === null ? (
+                  <p className="text-sm text-slate-400 dark:text-slate-500">Consultando disponibilidad en PatronBase…</p>
+                ) : disponibilidadVisible.length === 0 ? (
+                  <p className="text-sm text-slate-400 dark:text-slate-500">
+                    Has ocultado todas las bibliotecas.{" "}
+                    <Link to="/cuenta" className="text-brand-600 hover:underline dark:text-brand-400">
+                      Cambia cuáles ver desde Cuenta
+                    </Link>
+                    .
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-1">
+                    {disponibilidadVisible.map((d) => (
+                      <AvailabilityBadge key={d.bibliotecaId} disponibilidad={d} />
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -296,6 +302,7 @@ export function DashboardPage() {
       {wizardOpen && (
         <BookingWizard
           bibliotecas={bibliotecasVisibles}
+          cuentaId={vistaTodas ? cuentaReserva : undefined}
           onClose={() => setWizardOpen(false)}
           onCreated={() => {
             setWizardOpen(false);

@@ -3,7 +3,7 @@ import { z } from "zod";
 import { prisma } from "../db";
 import { requireAuth, requireCuenta } from "../auth/auth.middleware";
 import { listActivity } from "../activity/activity.service";
-import { createSchedule, deleteSchedule, getSchedule, listSchedules, setEstado, updateSchedule } from "./schedules.service";
+import { addToGroup, createGroup, createSchedule, deleteGroup, deleteSchedule, removeFromGroup, renameGroup, setGroupEstado, getSchedule, listSchedules, setEstado, updateSchedule } from "./schedules.service";
 
 export const schedulesRouter = Router();
 schedulesRouter.use(requireAuth, requireCuenta);
@@ -42,6 +42,59 @@ schedulesRouter.post("/", async (req, res) => {
   } catch (err) {
     res.status(422).json({ error: (err as Error).message });
   }
+});
+
+const grupoNombre = z.string().trim().min(1).max(80);
+const idsSchema = z.array(z.string()).min(1).max(50);
+
+schedulesRouter.post("/grupos", async (req, res) => {
+  const parsed = z.object({ nombre: grupoNombre, ids: idsSchema.min(2) }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Datos inválidos" });
+  try {
+    res.status(201).json(await createGroup(req.user!.sub, parsed.data.nombre, parsed.data.ids));
+  } catch (err) {
+    res.status(422).json({ error: (err as Error).message });
+  }
+});
+
+schedulesRouter.post("/grupos/:id/miembros", async (req, res) => {
+  const parsed = z.object({ ids: idsSchema }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Datos inválidos" });
+  try {
+    await addToGroup(req.params.id, req.user!.sub, parsed.data.ids);
+    res.status(204).send();
+  } catch (err) {
+    res.status(422).json({ error: (err as Error).message });
+  }
+});
+
+schedulesRouter.patch("/grupos/:id", async (req, res) => {
+  const parsed = z
+    .object({ nombre: grupoNombre.optional(), estado: z.enum(["activa", "pausada"]).optional() })
+    .refine((d) => Object.keys(d).length > 0)
+    .safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Datos inválidos" });
+  try {
+    if (parsed.data.nombre) await renameGroup(req.params.id, req.user!.sub, parsed.data.nombre);
+    if (parsed.data.estado) await setGroupEstado(req.params.id, req.user!.sub, parsed.data.estado);
+    res.status(204).send();
+  } catch (err) {
+    res.status(422).json({ error: (err as Error).message });
+  }
+});
+
+schedulesRouter.delete("/grupos/:id", async (req, res) => {
+  try {
+    await deleteGroup(req.params.id, req.user!.sub);
+    res.status(204).send();
+  } catch (err) {
+    res.status(422).json({ error: (err as Error).message });
+  }
+});
+
+schedulesRouter.delete("/:id/grupo", async (req, res) => {
+  await removeFromGroup(req.params.id, req.user!.sub);
+  res.status(204).send();
 });
 
 const actualizarSchema = z

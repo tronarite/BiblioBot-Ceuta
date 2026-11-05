@@ -66,25 +66,19 @@ export function calcularProximaEjecucion(p: ProgramacionParaProximaEjecucion): D
 }
 
 /**
- * Programaciones que ve el usuario según el ajuste de su cuenta activa: solo las de esa
- * cuenta ("esta"), las de todas sus cuentas ("todas") o las de las elegidas ("seleccionadas",
- * más siempre la activa). Cada una lleva el nombre de su cuenta.
+ * Programaciones que ve el usuario: solo las de la cuenta activa, o las de todas sus cuentas
+ * en la vista «Todas». Cada una lleva el nombre de su cuenta.
  */
 export async function listSchedules(usuarioId: string, cuentaActivaId: string, todas = false) {
   const cuentas = await prisma.cuentaPatronBase.findMany({ where: { usuarioId } });
   const activa = cuentas.find((c) => c.id === cuentaActivaId);
   if (!activa) return [];
 
-  let ids: string[];
-  if (todas || activa.modoProgramaciones === "todas") ids = cuentas.map((c) => c.id);
-  else if (activa.modoProgramaciones === "seleccionadas") {
-    const elegidas = JSON.parse(activa.programacionesDeCuentas) as string[];
-    ids = cuentas.filter((c) => c.id === activa.id || elegidas.includes(c.id)).map((c) => c.id);
-  } else ids = [activa.id];
+  const ids = todas ? cuentas.map((c) => c.id) : [activa.id];
 
   const items = await prisma.programacion.findMany({
     where: { cuentaId: { in: ids } },
-    include: { biblioteca: true, planta: true },
+    include: { biblioteca: true, planta: true, grupo: true },
     orderBy: { createdAt: "desc" },
   });
   const nombres = new Map(cuentas.map((c) => [c.id, c.alias || c.patronbaseEmail]));
@@ -239,4 +233,64 @@ export async function getSchedule(id: string, usuarioId: string) {
 
 export async function deleteSchedule(id: string, usuarioId: string) {
   return prisma.programacion.deleteMany({ where: delUsuario(id, usuarioId) });
+}
+
+// ---- Grupos: varias programaciones que se pausan y reanudan juntas ----
+
+const delUsuarioIds = (ids: string[], usuarioId: string) => ({ id: { in: ids }, cuenta: { usuarioId } });
+
+async function comprobarProgramaciones(ids: string[], usuarioId: string) {
+  const unicos = [...new Set(ids)];
+  const n = await prisma.programacion.count({ where: delUsuarioIds(unicos, usuarioId) });
+  if (n !== unicos.length) throw new Error("Alguna programación no existe");
+  return unicos;
+}
+
+export async function createGroup(usuarioId: string, nombre: string, ids: string[]) {
+  const unicos = await comprobarProgramaciones(ids, usuarioId);
+  const grupo = await prisma.grupoProgramacion.create({ data: { usuarioId, nombre: nombre.trim() } });
+  await prisma.programacion.updateMany({ where: delUsuarioIds(unicos, usuarioId), data: { grupoId: grupo.id } });
+  return grupo;
+}
+
+async function grupoDelUsuario(id: string, usuarioId: string) {
+  const grupo = await prisma.grupoProgramacion.findFirst({ where: { id, usuarioId } });
+  if (!grupo) throw new Error("Grupo no encontrado");
+  return grupo;
+}
+
+export async function addToGroup(id: string, usuarioId: string, ids: string[]) {
+  await grupoDelUsuario(id, usuarioId);
+  const unicos = await comprobarProgramaciones(ids, usuarioId);
+  await prisma.programacion.updateMany({ where: delUsuarioIds(unicos, usuarioId), data: { grupoId: id } });
+}
+
+export async function renameGroup(id: string, usuarioId: string, nombre: string) {
+  await grupoDelUsuario(id, usuarioId);
+  await prisma.grupoProgramacion.update({ where: { id }, data: { nombre: nombre.trim() } });
+}
+
+/** Pausa o reanuda todas las programaciones del grupo; las finalizadas no se tocan. */
+export async function setGroupEstado(id: string, usuarioId: string, estado: "activa" | "pausada") {
+  await grupoDelUsuario(id, usuarioId);
+  const miembros = await prisma.programacion.findMany({ where: { grupoId: id, cuenta: { usuarioId } } });
+  for (const m of miembros) {
+    if (m.estado === "finalizada" || m.estado === estado) continue;
+    await setEstado(m.id, usuarioId, estado);
+  }
+}
+
+/** Disuelve el grupo; sus programaciones se conservan tal como están. */
+export async function deleteGroup(id: string, usuarioId: string) {
+  await grupoDelUsuario(id, usuarioId);
+  await prisma.grupoProgramacion.delete({ where: { id } });
+}
+
+/** Saca una programación de su grupo; si el grupo se queda con menos de 2, se disuelve. */
+export async function removeFromGroup(id: string, usuarioId: string) {
+  const p = await prisma.programacion.findFirst({ where: delUsuario(id, usuarioId) });
+  if (!p?.grupoId) return;
+  await prisma.programacion.update({ where: { id }, data: { grupoId: null } });
+  const quedan = await prisma.programacion.count({ where: { grupoId: p.grupoId } });
+  if (quedan < 2) await prisma.grupoProgramacion.delete({ where: { id: p.grupoId } });
 }

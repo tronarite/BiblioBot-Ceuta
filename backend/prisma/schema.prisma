@@ -33,11 +33,12 @@ model Usuario {
   compartirReservas   Boolean   @default(true) // si los amigos pueden ver sus reservas (biblioteca y día siempre; el resto según los campos de abajo)
   compartirPlanta     Boolean   @default(true)
   compartirTurno      Boolean   @default(true)
-  compartirAsiento    Boolean   @default(false)
+  compartirAsiento    Boolean   @default(true)
 
   cuentasPatronBase   CuentaPatronBase[]
   reservas            Reserva[]
   programaciones      Programacion[]
+  gruposProgramaciones GrupoProgramacion[]
   actividad           ActividadLog[]
   mensajesDashboard   MensajeDashboard[]
   horariosCreados     HorarioExtraordinario[]
@@ -155,9 +156,25 @@ model Reserva {
   createdAt           DateTime      @default(now())
 }
 
+// Agrupa varias programaciones para pausarlas y reanudarlas a la vez. Al borrar el grupo
+// las programaciones se conservan (grupoId pasa a null).
+model GrupoProgramacion {
+  id             String         @id @default(cuid())
+  usuarioId      String
+  usuario        Usuario        @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  nombre         String
+  createdAt      DateTime       @default(now())
+
+  programaciones Programacion[]
+
+  @@index([usuarioId])
+}
+
 model Programacion {
   id                          String    @id @default(cuid())
   nombre                      String?
+  grupoId                     String?
+  grupo                       GrupoProgramacion? @relation(fields: [grupoId], references: [id], onDelete: SetNull)
   usuarioId                   String
   usuario                     Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
   cuentaId                    String?

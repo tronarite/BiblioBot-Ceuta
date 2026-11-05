@@ -99,10 +99,6 @@ export function serializeCuenta(c: {
   patronbaseEmail: string;
   principal: boolean;
   estadoVinculacion: string;
-  modoReservas: string;
-  reservasDeCuentas: string;
-  modoProgramaciones: string;
-  programacionesDeCuentas: string;
 }) {
   return {
     id: c.id,
@@ -110,10 +106,6 @@ export function serializeCuenta(c: {
     patronbaseEmail: c.patronbaseEmail,
     principal: c.principal,
     estadoVinculacion: c.estadoVinculacion as "vinculada" | "error" | "no_vinculada",
-    modoReservas: c.modoReservas as "esta" | "todas" | "seleccionadas",
-    reservasDeCuentas: JSON.parse(c.reservasDeCuentas) as string[],
-    modoProgramaciones: c.modoProgramaciones as "esta" | "todas" | "seleccionadas",
-    programacionesDeCuentas: JSON.parse(c.programacionesDeCuentas) as string[],
   };
 }
 
@@ -125,35 +117,13 @@ export async function listCuentas(usuarioId: string) {
   return cuentas.map(serializeCuenta);
 }
 
-/** Ajustes de una cuenta: alias y qué reservas muestra el dashboard cuando está activa. */
-export async function updateCuenta(
-  usuarioId: string,
-  cuentaId: string,
-  data: {
-    alias?: string | null;
-    modoReservas?: "esta" | "todas" | "seleccionadas";
-    reservasDeCuentas?: string[];
-    modoProgramaciones?: "esta" | "todas" | "seleccionadas";
-    programacionesDeCuentas?: string[];
-  },
-) {
+/** Ajustes de una cuenta: el alias. */
+export async function updateCuenta(usuarioId: string, cuentaId: string, data: { alias?: string | null }) {
   const cuenta = await prisma.cuentaPatronBase.findFirst({ where: { id: cuentaId, usuarioId } });
   if (!cuenta) return null;
-  // Solo ids de cuentas del mismo usuario.
-  const soloPropias = async (ids?: string[]) => {
-    if (!ids) return undefined;
-    const propias = await prisma.cuentaPatronBase.findMany({ where: { usuarioId, id: { in: ids } }, select: { id: true } });
-    return JSON.stringify(propias.map((c) => c.id));
-  };
-  const reservasDeCuentas = await soloPropias(data.reservasDeCuentas);
-  const programacionesDeCuentas = await soloPropias(data.programacionesDeCuentas);
   const actualizada = await prisma.cuentaPatronBase.update({
     where: { id: cuentaId },
-    data: { alias: data.alias === undefined ? undefined : data.alias?.trim() || null, modoReservas: data.modoReservas,
-      reservasDeCuentas,
-      modoProgramaciones: data.modoProgramaciones,
-      programacionesDeCuentas,
-    },
+    data: { alias: data.alias === undefined ? undefined : data.alias?.trim() || null },
   });
   return serializeCuenta(actualizada);
 }

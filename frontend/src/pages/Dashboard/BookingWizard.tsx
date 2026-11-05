@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useState } from "react";
-import { api } from "../../api/client";
+import { api, apiDeCuenta } from "../../api/client";
 import { parseSpanishDateLabel } from "../../api/dateEs";
 import type { Biblioteca, ConCache, EstadoTurno, PerformanceOption, PerformancesResponse, Planta, SeatInfo, Turno } from "../../api/types";
 import { formatearAsiento, parseAsiento } from "../../api/seatLabel";
@@ -50,13 +50,17 @@ function tipoLabel(t: Turno["tipo"]) {
 
 export function BookingWizard({
   bibliotecas,
+  cuentaId,
   onClose,
   onCreated,
 }: {
   bibliotecas: Biblioteca[];
+  /** Cuenta con la que reservar; si falta, la activa (en la vista «Todas» hay que indicarla). */
+  cuentaId?: string;
   onClose: () => void;
   onCreated: () => void;
 }) {
+  const cli = cuentaId ? apiDeCuenta(cuentaId) : api;
   const [fase, setFase] = useState<Fase>("elegir");
   const [turnoActual, setTurnoActual] = useState<Turno | null>(null);
   const [performances, setPerformances] = useState<PerformanceOption[]>([]);
@@ -83,7 +87,7 @@ export function BookingWizard({
   const plano = plantaActual ? PLANO_POR_PLANTA[plantaActual.nombre] : undefined;
 
   useEffect(() => {
-    api
+    cli
       .get<ConCache<EstadoTurno[]>>("/libraries/turnos-estado")
       .then((res) => {
         setEstadoTurnos(res.items);
@@ -92,7 +96,7 @@ export function BookingWizard({
           // plano; se consulta una vez más al cabo de unos segundos para reflejar el
           // cambio (p. ej. el aviso de "pocas plazas") sin recargar la página.
           setTimeout(() => {
-            api
+            cli
               .get<ConCache<EstadoTurno[]>>("/libraries/turnos-estado")
               .then((r) => setEstadoTurnos(r.items))
               .catch(() => {});
@@ -106,7 +110,7 @@ export function BookingWizard({
     if (fase !== "dia" || !turnoActual) return;
     setLoading(true);
     setError(null);
-    api
+    cli
       .get<PerformancesResponse>(`/reservations/performances?turnoId=${turnoActual.id}`)
       .then((res) => setPerformances(res.options))
       .catch((err) => setError(err.message))
@@ -117,7 +121,7 @@ export function BookingWizard({
     if (fase !== "dia" || !turnoActual || !perf) return;
     setLoading(true);
     setError(null);
-    api
+    cli
       .get<{ seats: SeatInfo[] }>(`/reservations/seatmap?turnoId=${turnoActual.id}&perfId=${perf.perfId}`)
       .then((res) => setSeats(res.seats))
       .catch((err) => setError(err.message))
@@ -166,7 +170,7 @@ export function BookingWizard({
     for (const c of cesta) {
       try {
         const fecha = parseSpanishDateLabel(c.perf.label) ?? new Date();
-        await api.post("/reservations", {
+        await cli.post("/reservations", {
           turnoId: c.turno.id,
           perfId: c.perf.perfId,
           fecha: fecha.toISOString(),

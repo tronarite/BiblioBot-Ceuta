@@ -135,6 +135,8 @@ export type Programacion = {
   planta: Planta;
   cuentaId?: string | null;
   cuentaNombre?: string;
+  grupoId?: string | null;
+  grupo?: { id: string; nombre: string } | null;
 };
 
 export type EstadoSistema = {
@@ -176,10 +178,6 @@ export type CuentaPatronBase = {
   patronbaseEmail: string;
   principal: boolean;
   estadoVinculacion: "no_vinculada" | "vinculada" | "error";
-  modoReservas: "esta" | "todas" | "seleccionadas";
-  reservasDeCuentas: string[];
-  modoProgramaciones: "esta" | "todas" | "seleccionadas";
-  programacionesDeCuentas: string[];
 };
 
 export type CuentaPatronBaseStatus = {
