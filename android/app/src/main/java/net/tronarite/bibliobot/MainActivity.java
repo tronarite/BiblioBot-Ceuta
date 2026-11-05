@@ -58,6 +58,7 @@ public class MainActivity extends Activity {
     private LinearLayout bottomNav;          // contenedor (pinta bajo la barra de gestos)
     private BottomNavigationView navBar;     // NavigationBar de Material 3
     private boolean settingTab;
+    private boolean pullRefreshEnabled = true;
 
     private ValueCallback<Uri[]> fileCallback;
     private boolean loadFailed;
@@ -142,6 +143,9 @@ public class MainActivity extends Activity {
             @Override
             public void onPageStarted(WebView view, String url, Bitmap favicon) {
                 loadFailed = false;
+                // Una página nueva vuelve a permitir tirar para refrescar (la web lo desactiva en sus asistentes).
+                pullRefreshEnabled = true;
+                refresh.setEnabled(true);
             }
 
             @Override
@@ -196,6 +200,15 @@ public class MainActivity extends Activity {
 
     // ---------- Puente JS -> nativo ----------
     private class Bridge {
+        /** La web lo desactiva dentro de los asistentes (su scroll es interno y el gesto recargaba la página). */
+        @JavascriptInterface
+        public void setPullRefresh(boolean enabled) {
+            runOnUiThread(() -> {
+                pullRefreshEnabled = enabled;
+                refresh.setEnabled(enabled);
+            });
+        }
+
         @JavascriptInterface
         public void setTheme(boolean isDark) {
             runOnUiThread(() -> {

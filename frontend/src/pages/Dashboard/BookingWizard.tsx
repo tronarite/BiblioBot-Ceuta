@@ -3,6 +3,7 @@ import { api, apiDeCuenta } from "../../api/client";
 import { parseSpanishDateLabel } from "../../api/dateEs";
 import type { Biblioteca, ConCache, EstadoTurno, PerformanceOption, PerformancesResponse, Planta, SeatInfo, Turno } from "../../api/types";
 import { formatearAsiento, parseAsiento } from "../../api/seatLabel";
+import { CuentaDelProceso } from "../../components/CuentaDelProceso";
 import { FullScreenPanel } from "../../components/FullScreenPanel";
 import { ImageLightbox } from "../../components/ImageLightbox";
 import { SeatMapViewer } from "../../components/SeatMapViewer";
@@ -254,7 +255,7 @@ export function BookingWizard({
 
   return (
     <Fragment>
-    <FullScreenPanel title="Hacer una reserva" onClose={onClose} steps={steps} footer={barra}>
+    <FullScreenPanel title="Hacer una reserva" subtitle={<CuentaDelProceso cuentaId={cuentaId} />} onClose={onClose} steps={steps} footer={barra}>
       {error && (
         <p className="mb-4 whitespace-pre-line rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-900/20 dark:text-red-300">
           {error}
