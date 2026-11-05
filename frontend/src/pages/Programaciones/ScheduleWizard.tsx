@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api, apiDeCuenta } from "../../api/client";
-import type { Biblioteca, Planta, Programacion } from "../../api/types";
+import type { Biblioteca, PerformancesResponse, Planta, Programacion, SeatInfo } from "../../api/types";
+import { CuentaDelProceso } from "../../components/CuentaDelProceso";
 import { FullScreenPanel } from "../../components/FullScreenPanel";
+import { numeroAsiento, SeatMapViewer } from "../../components/SeatMapViewer";
 import { ImageLightbox } from "../../components/ImageLightbox";
 import { BTN, IndicadorPasos, PlanoPlegable, PRIM, usePlanoAbierto } from "../../components/WizardParts";
 
@@ -77,6 +79,48 @@ export function ScheduleWizard({
   }
 
   const asientosLimpios = asientos.map((a) => a.trim()).filter(Boolean);
+
+  // Mapa real de asientos de la sala (el plano en foto incluye sitios que luego no se pueden
+  // reservar). Se toma de un día de muestra: el primero con reservas abiertas del primer turno.
+  const [mapa, setMapa] = useState<SeatInfo[] | null>(null);
+  const [mapaEstado, setMapaEstado] = useState<"cargando" | "ok" | "error">("cargando");
+  const turnoMuestra = planta && turnos.length ? planta.turnos.find((t) => t.tipo === turnos[0]) : undefined;
+
+  useEffect(() => {
+    if (step !== 3 || !turnoMuestra) return;
+    let activo = true;
+    setMapa(null);
+    setMapaEstado("cargando");
+    (async () => {
+      try {
+        const { options } = await cli.get<PerformancesResponse>(`/reservations/performances?turnoId=${turnoMuestra.id}`);
+        const dia = options.find((o) => o.available) ?? options[0];
+        if (!dia) throw new Error("Sin días");
+        const { seats } = await cli.get<{ seats: SeatInfo[] }>(`/reservations/seatmap?turnoId=${turnoMuestra.id}&perfId=${dia.perfId}`);
+        if (!activo) return;
+        setMapa(seats);
+        setMapaEstado("ok");
+      } catch {
+        if (activo) setMapaEstado("error");
+      }
+    })();
+    return () => {
+      activo = false;
+    };
+  }, [step, turnoMuestra?.id]);
+
+  function alternarAsientoDelMapa(seat: SeatInfo) {
+    const n = numeroAsiento(seat);
+    setAsientos((prev) => {
+      if (prev.some((x) => x.trim() === n)) {
+        const resto = prev.filter((x) => x.trim() !== n);
+        return resto.length ? resto : [""];
+      }
+      const hueco = prev.findIndex((x) => !x.trim());
+      if (hueco >= 0) return prev.map((x, j) => (j === hueco ? n : x));
+      return prev.length < 10 ? [...prev, n] : prev;
+    });
+  }
 
   async function confirmar() {
     if (!biblioteca || !planta || asientosLimpios.length === 0) return;
@@ -163,6 +207,7 @@ export function ScheduleWizard({
   return (
     <FullScreenPanel
       title={editando ? "Editar programación" : "Nueva programación"}
+      subtitle={<CuentaDelProceso cuentaId={cuentaId} />}
       onClose={onClose}
       footer={barra}
       steps={[
@@ -335,7 +380,7 @@ export function ScheduleWizard({
               <p className={seccion}>Asientos por orden de preferencia</p>
               <p className="text-xs text-slate-400 dark:text-slate-500">
                 Se intentan de arriba abajo: si el primero no está libre a la hora de reservar, prueba con el siguiente.
-                Mira el plano y escribe el número del asiento (la fila la determina la sala).
+                Tócalos en el mapa de abajo o escribe su número.
               </p>
               {asientos.map((valor, i) => (
                 <div key={i} className="flex items-center gap-2">
@@ -387,6 +432,21 @@ export function ScheduleWizard({
               <p>
                 <span className="text-slate-500 dark:text-slate-400">Asientos:</span> {asientosLimpios.join(", ") || "—"}
               </p>
+            </div>
+
+            <div className="max-w-xl">
+              <p className={seccion}>Mapa de asientos</p>
+              {mapaEstado === "cargando" && (
+                <p className="text-sm text-slate-500 dark:text-slate-400">Cargando mapa de asientos…</p>
+              )}
+              {mapaEstado === "error" && (
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  No se ha podido cargar el mapa ahora mismo. Puedes escribir los números a mano mirando el plano.
+                </p>
+              )}
+              {mapa && (
+                <SeatMapViewer seats={mapa} mode="multi" multiSelected={asientosLimpios} onSelect={alternarAsientoDelMapa} />
+              )}
             </div>
 
             {plano ? (
