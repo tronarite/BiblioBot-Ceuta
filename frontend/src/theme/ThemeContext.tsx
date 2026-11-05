@@ -33,6 +33,10 @@ function getInitialModo(): Modo {
 
 function applyTheme(theme: Theme) {
   document.documentElement.classList.toggle("dark", theme === "dark");
+  // App Android: avisa para que las barras nativas sigan el tema de la web.
+  (window as unknown as { BiblioBotNative?: { setTheme(dark: boolean): void } }).BiblioBotNative?.setTheme(
+    theme === "dark",
+  );
 }
 
 type ThemeState = {
